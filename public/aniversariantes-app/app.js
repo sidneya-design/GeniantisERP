@@ -85,6 +85,36 @@ function getLocalPreviewState() {
       config: { ...LOCAL_PREVIEW_DEFAULTS.config, ...(saved?.config || {}) },
       nextContactId: saved?.nextContactId || LOCAL_PREVIEW_DEFAULTS.nextContactId
     };
+
+    // Sincronização automática com o cadastro central de funcionários do GeniantisERP
+    try {
+      const geniantisEmployeesRaw = localStorage.getItem('geniantis_employees');
+      if (geniantisEmployeesRaw) {
+        const geniantisEmployees = JSON.parse(geniantisEmployeesRaw);
+        geniantisEmployees.forEach(emp => {
+          if (!emp.birth_date || emp.status === 'desligado') return;
+          const idx = localPreviewState.contatos.findIndex(c => 
+            c.email && c.email.toLowerCase() === emp.email.toLowerCase()
+          );
+          if (idx >= 0) {
+            localPreviewState.contatos[idx].nome = emp.full_name;
+            localPreviewState.contatos[idx].data_nascimento = emp.birth_date;
+            localPreviewState.contatos[idx].departamento = emp.department;
+          } else {
+            localPreviewState.contatos.push({
+              id: `erp-${emp.id}`,
+              nome: emp.full_name,
+              email: emp.email,
+              data_nascimento: emp.birth_date,
+              departamento: emp.department
+            });
+          }
+        });
+      }
+    } catch (eSync) {
+      console.warn('Erro ao sincronizar funcionários no ParabénsFlow:', eSync);
+    }
+
   } catch (error) {
     localPreviewState = structuredClone(LOCAL_PREVIEW_DEFAULTS);
   }
