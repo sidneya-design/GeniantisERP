@@ -6,7 +6,7 @@ export const Subscriptions: React.FC = () => {
   const { profile } = useAuth();
   const [activeTab, setActiveTab] = useState<'contratos' | 'financeiro' | 'licencas'>('contratos');
 
-  const contracts = [
+  const contracts = []; /*
     {
       id: '1',
       service: 'Google Workspace',
@@ -67,9 +67,9 @@ export const Subscriptions: React.FC = () => {
       status: 'ativa',
       admin_email: 'marketing@geniantis.com',
     },
-  ];
+  */
 
-  const financialCharges = [
+  const financialCharges = []; /*
     {
       id: 'f1',
       service: 'Google Workspace',
@@ -100,7 +100,7 @@ export const Subscriptions: React.FC = () => {
       balance: 0.0,
       status: 'pago',
     },
-  ];
+  */
 
   return (
     <div className="space-y-6">
@@ -204,6 +204,11 @@ export const Subscriptions: React.FC = () => {
               </div>
             </div>
           ))}
+          {contracts.length === 0 && (
+            <div className="md:col-span-2 bg-white rounded-2xl border border-dashed border-slate-300 p-10 text-center text-sm text-slate-500">
+              Nenhum contrato ou licença cadastrada.
+            </div>
+          )}
         </div>
       )}
 
@@ -214,18 +219,18 @@ export const Subscriptions: React.FC = () => {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
             <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
               <span className="text-xs text-slate-500 uppercase font-semibold">Custo Mensal Equivalente</span>
-              <div className="text-2xl font-bold text-slate-800 mt-1">R$ 4.509,00</div>
-              <span className="text-xs text-slate-500">Média normalizada dos contratos</span>
+              <div className="text-2xl font-bold text-slate-800 mt-1">R$ 0,00</div>
+              <span className="text-xs text-slate-500">Nenhum contrato cadastrado</span>
             </div>
             <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
               <span className="text-xs text-slate-500 uppercase font-semibold">Custo Anual Projetado</span>
-              <div className="text-2xl font-bold text-slate-800 mt-1">R$ 54.108,00</div>
-              <span className="text-xs text-slate-500">Planejamento anual consolidado</span>
+              <div className="text-2xl font-bold text-slate-800 mt-1">R$ 0,00</div>
+              <span className="text-xs text-slate-500">Sem dados para projetar</span>
             </div>
             <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
               <span className="text-xs text-slate-500 uppercase font-semibold">Vencimentos Próximos</span>
-              <div className="text-2xl font-bold text-amber-600 mt-1">R$ 2.450,00</div>
-              <span className="text-xs text-amber-700">1 cobrança prevista</span>
+              <div className="text-2xl font-bold text-amber-600 mt-1">R$ 0,00</div>
+              <span className="text-xs text-slate-500">Nenhum vencimento cadastrado</span>
             </div>
           </div>
 
@@ -284,6 +289,9 @@ export const Subscriptions: React.FC = () => {
                       </td>
                     </tr>
                   ))}
+                  {financialCharges.length === 0 && (
+                    <tr><td colSpan={7} className="px-6 py-10 text-center text-sm text-slate-500">Nenhuma cobrança cadastrada.</td></tr>
+                  )}
                 </tbody>
               </table>
             </div>

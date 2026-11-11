@@ -1,4 +1,5 @@
 import { Employee } from '../types/employee';
+import { isSupabaseConfigured, supabase } from '../lib/supabase';
 
 const STORAGE_KEY = 'geniantis_employees';
 const PARABENSFLOW_KEY = 'parabensflow_local_preview_state';
@@ -12,7 +13,7 @@ const INITIAL_EMPLOYEES: Employee[] = [
     preferential_name: 'Sidney',
     email: 'sidney.a@geniantis.com',
     phone: '(11) 98765-4321',
-    department: 'Tecnologia da Informação',
+    department: 'TI',
     role_title: 'Coordenador de TI & Infraestrutura',
     unit: 'Matriz - São Paulo',
     manager: 'Diretoria Executiva',
@@ -29,7 +30,7 @@ const INITIAL_EMPLOYEES: Employee[] = [
     preferential_name: 'Juliana',
     email: 'juliana.f@geniantis.com',
     phone: '(11) 97654-3210',
-    department: 'Recursos Humanos',
+    department: 'RH',
     role_title: 'Analista de RH Sênior',
     unit: 'Matriz - São Paulo',
     manager: 'Gerência de Recursos Humanos',
@@ -46,7 +47,7 @@ const INITIAL_EMPLOYEES: Employee[] = [
     preferential_name: 'Eduardo',
     email: 'carlos.s@geniantis.com',
     phone: '(11) 96543-2109',
-    department: 'Financeiro / Administrativo',
+    department: 'Financeiro',
     role_title: 'Especialista Financeiro',
     unit: 'Matriz - São Paulo',
     manager: 'Controladoria',
@@ -63,7 +64,7 @@ const INITIAL_EMPLOYEES: Employee[] = [
     preferential_name: 'Mariana',
     email: 'mariana.l@geniantis.com',
     phone: '(11) 95432-1098',
-    department: 'Operações',
+    department: 'Pedagogia',
     role_title: 'Supervisora de Operações',
     unit: 'Filial 1',
     manager: 'Diretoria de Operações',
@@ -76,12 +77,76 @@ const INITIAL_EMPLOYEES: Employee[] = [
 ];
 
 export const EmployeeService = {
+  mapRow(row: any): Employee {
+    return {
+      id: row.id,
+      registration_number: row.registration_number || undefined,
+      full_name: row.full_name,
+      preferential_name: row.preferential_name || undefined,
+      email: row.email,
+      cpf: row.cpf || undefined,
+      phone: row.phone || undefined,
+      address: row.address || undefined,
+      emergency_contact_name: row.emergency_contact_name || undefined,
+      emergency_contact_relationship: row.emergency_contact_relationship || undefined,
+      emergency_contact_phone: row.emergency_contact_phone || undefined,
+      department: row.department_name || '',
+      role_title: row.role_title || '',
+      unit: row.unit_name || '',
+      manager: row.manager || undefined,
+      admission_date: row.admission_date,
+      termination_date: row.termination_date || null,
+      birth_date: row.birth_date || undefined,
+      status: row.status,
+      photo_url: row.photo_url || undefined,
+      restricted_notes: row.restricted_notes || undefined,
+      created_at: row.created_at,
+      updated_at: row.updated_at,
+    };
+  },
+
+  toRow(employee: Omit<Employee, 'id' | 'created_at' | 'updated_at'> & { id?: string }) {
+    return {
+      ...(employee.id ? { id: employee.id } : {}),
+      registration_number: employee.registration_number || null,
+      full_name: employee.full_name,
+      preferential_name: employee.preferential_name || null,
+      email: employee.email,
+      cpf: employee.cpf || null,
+      phone: employee.phone || null,
+      address: employee.address || null,
+      emergency_contact_name: employee.emergency_contact_name || null,
+      emergency_contact_relationship: employee.emergency_contact_relationship || null,
+      emergency_contact_phone: employee.emergency_contact_phone || null,
+      department_name: employee.department,
+      role_title: employee.role_title,
+      unit_name: employee.unit,
+      manager: employee.manager || null,
+      admission_date: employee.admission_date,
+      termination_date: employee.termination_date || null,
+      birth_date: employee.birth_date || null,
+      status: employee.status,
+      photo_url: employee.photo_url || null,
+      restricted_notes: employee.restricted_notes || null,
+    };
+  },
+
   // Obter todos os funcionários
-  getEmployees(): Employee[] {
+  async getEmployees(): Promise<Employee[]> {
+    if (isSupabaseConfigured) {
+      const { data, error } = await supabase
+        .from('employees')
+        .select('*')
+        .order('full_name', { ascending: true });
+
+      if (error) throw error;
+      return (data || []).map(this.mapRow);
+    }
+
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored) {
-        return JSON.parse(stored);
+        return JSON.parse(stored) as Employee[];
       }
     } catch (e) {
       console.warn('Erro ao ler funcionários do localStorage:', e);
@@ -89,12 +154,23 @@ export const EmployeeService = {
     // Inicializa se vazio
     localStorage.setItem(STORAGE_KEY, JSON.stringify(INITIAL_EMPLOYEES));
     this.syncWithParabensFlow(INITIAL_EMPLOYEES);
-    return INITIAL_EMPLOYEES;
+    return [...INITIAL_EMPLOYEES];
   },
 
   // Salvar ou atualizar funcionário
-  saveEmployee(employee: Omit<Employee, 'id' | 'created_at' | 'updated_at'> & { id?: string }): Employee {
-    const list = this.getEmployees();
+  async saveEmployee(employee: Omit<Employee, 'id' | 'created_at' | 'updated_at'> & { id?: string }): Promise<Employee> {
+    if (isSupabaseConfigured) {
+      const payload = this.toRow(employee);
+      const query = employee.id
+        ? supabase.from('employees').update(payload).eq('id', employee.id)
+        : supabase.from('employees').insert(payload);
+      const { data, error } = await query.select('*').single();
+
+      if (error) throw error;
+      return this.mapRow(data);
+    }
+
+    const list = await this.getEmployees();
     const now = new Date().toISOString();
 
     if (employee.id) {
@@ -123,13 +199,47 @@ export const EmployeeService = {
     return newEmp;
   },
 
+  // Alterar situação (Ativar / Afastar / Desativar-Desligar)
+  async updateStatus(id: string, newStatus: Employee['status']): Promise<Employee | null> {
+    if (isSupabaseConfigured) {
+      const { data, error } = await supabase
+        .from('employees')
+        .update({
+          status: newStatus,
+          termination_date: newStatus === 'desligado' ? new Date().toISOString().slice(0, 10) : null,
+        })
+        .eq('id', id)
+        .select('*')
+        .maybeSingle();
+
+      if (error) throw error;
+      return data ? this.mapRow(data) : null;
+    }
+
+    const list = await this.getEmployees();
+    const idx = list.findIndex(e => e.id === id);
+    if (idx < 0) return null;
+
+    const now = new Date().toISOString();
+    list[idx] = {
+      ...list[idx],
+      status: newStatus,
+      termination_date: newStatus === 'desligado' ? now.split('T')[0] : null,
+      updated_at: now,
+    };
+
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+    this.syncWithParabensFlow(list);
+    return list[idx];
+  },
+
   // Sincronizar funcionários ativos diretamente no ParabénsFlow
   syncWithParabensFlow(employees: Employee[]) {
     try {
       // 1. Grava no geniantis_employees para acesso direto
       localStorage.setItem('geniantis_employees', JSON.stringify(employees));
 
-      // 2. Se houver estado do ParabénsFlow, sincroniza contatos sem duplicar e preservando dados
+      // 2. Se houver estado do ParabénsFlow, sincroniza contatos sem duplicar e removendo desligados
       const pfRaw = localStorage.getItem(PARABENSFLOW_KEY);
       let pfState = pfRaw ? JSON.parse(pfRaw) : null;
 
@@ -143,6 +253,17 @@ export const EmployeeService = {
           nextContactId: 100,
         };
       }
+
+      // Remove da lista de aniversariantes qualquer funcionário que foi desligado/desativado
+      const terminatedEmails = new Set(
+        employees
+          .filter(e => e.status === 'desligado')
+          .map(e => e.email.toLowerCase())
+      );
+
+      pfState.contatos = (pfState.contatos || []).filter(
+        (c: any) => !c.email || !terminatedEmails.has(c.email.toLowerCase())
+      );
 
       const activeEmployees = employees.filter(e => e.status !== 'desligado');
 

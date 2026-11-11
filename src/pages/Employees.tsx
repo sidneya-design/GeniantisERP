@@ -17,6 +17,30 @@ import { useAuth } from '../contexts/AuthContext';
 import { EmployeeService } from '../services/employeeService';
 import { Employee, EmployeeStatus } from '../types/employee';
 
+function formatCpf(value: string): string {
+  const digits = value.replace(/\D/g, '').slice(0, 11);
+  return digits
+    .replace(/(\d{3})(\d)/, '$1.$2')
+    .replace(/(\d{3})(\d)/, '$1.$2')
+    .replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+}
+
+function isValidCpf(value: string): boolean {
+  const cpf = value.replace(/\D/g, '');
+  if (cpf.length !== 11 || /^(\d)\1{10}$/.test(cpf)) return false;
+
+  const calculateDigit = (length: number) => {
+    let sum = 0;
+    for (let index = 0; index < length; index += 1) {
+      sum += Number(cpf[index]) * (length + 1 - index);
+    }
+    const remainder = (sum * 10) % 11;
+    return remainder === 10 ? 0 : remainder;
+  };
+
+  return calculateDigit(9) === Number(cpf[9]) && calculateDigit(10) === Number(cpf[10]);
+}
+
 export const Employees: React.FC = () => {
   const { profile } = useAuth();
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -25,6 +49,10 @@ export const Employees: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+  const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   // Formulário de Novo Funcionário
   const [formData, setFormData] = useState({
@@ -32,8 +60,13 @@ export const Employees: React.FC = () => {
     full_name: '',
     preferential_name: '',
     email: '',
+    cpf: '',
     phone: '',
-    department: 'Tecnologia da Informação',
+    address: '',
+    emergency_contact_name: '',
+    emergency_contact_relationship: '',
+    emergency_contact_phone: '',
+    department: 'TI',
     role_title: '',
     unit: 'Matriz - São Paulo',
     manager: '',
@@ -43,32 +76,110 @@ export const Employees: React.FC = () => {
     restricted_notes: '',
   });
 
-  const loadData = () => {
-    const list = EmployeeService.getEmployees();
-    setEmployees(list);
+  const loadData = async () => {
+    setIsLoading(true);
+    setErrorMessage(null);
+    try {
+      setEmployees(await EmployeeService.getEmployees());
+    } catch (error: any) {
+      setErrorMessage(error?.message || 'Não foi possível carregar os funcionários.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   useEffect(() => {
     loadData();
   }, []);
 
-  const handleCreate = (e: React.FormEvent) => {
+  const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
+    setErrorMessage(null);
+    setSuccessMessage(null);
     if (!formData.full_name || !formData.email) {
-      alert('Nome completo e e-mail corporativo são obrigatórios.');
+      alert('Nome completo e e-mail são obrigatórios.');
       return;
     }
 
-    EmployeeService.saveEmployee(formData);
-    loadData();
-    setIsModalOpen(false);
+    if (formData.cpf && !isValidCpf(formData.cpf)) {
+      alert('Informe um CPF válido.');
+      return;
+    }
+
+    try {
+      const wasEditing = Boolean(editingEmployee);
+      await EmployeeService.saveEmployee({ ...formData, id: editingEmployee?.id });
+      await loadData();
+      setSuccessMessage(wasEditing ? 'Funcionário atualizado com sucesso.' : 'Funcionário cadastrado com sucesso.');
+      setIsModalOpen(false);
+      setEditingEmployee(null);
+      setFormData({
+        registration_number: '',
+        full_name: '',
+        preferential_name: '',
+        email: '',
+        cpf: '',
+        phone: '',
+        address: '',
+        emergency_contact_name: '',
+        emergency_contact_relationship: '',
+        emergency_contact_phone: '',
+        department: 'TI',
+        role_title: '',
+        unit: 'Matriz - São Paulo',
+        manager: '',
+        admission_date: new Date().toISOString().split('T')[0],
+        birth_date: '',
+        status: 'ativo',
+        restricted_notes: '',
+      });
+    } catch (error: any) {
+      setErrorMessage(error?.message || 'Não foi possível salvar o funcionário.');
+    }
+  };
+
+  const handleEdit = (employee: Employee) => {
+    setSuccessMessage(null);
+    setEditingEmployee(employee);
+    setFormData({
+      registration_number: employee.registration_number || '',
+      full_name: employee.full_name,
+      preferential_name: employee.preferential_name || '',
+      email: employee.email,
+      cpf: employee.cpf || '',
+      phone: employee.phone || '',
+      address: employee.address || '',
+      emergency_contact_name: employee.emergency_contact_name || '',
+      emergency_contact_relationship: employee.emergency_contact_relationship || '',
+      emergency_contact_phone: employee.emergency_contact_phone || '',
+      department: employee.department,
+      role_title: employee.role_title,
+      unit: employee.unit,
+      manager: employee.manager || '',
+      admission_date: employee.admission_date,
+      birth_date: employee.birth_date || '',
+      status: employee.status,
+      restricted_notes: employee.restricted_notes || '',
+    });
+    setIsDetailsOpen(false);
+    setIsModalOpen(true);
+  };
+
+  const handleNew = () => {
+    setSuccessMessage(null);
+    setEditingEmployee(null);
     setFormData({
       registration_number: '',
       full_name: '',
       preferential_name: '',
       email: '',
+      cpf: '',
       phone: '',
-      department: 'Tecnologia da Informação',
+      address: '',
+      emergency_contact_name: '',
+      emergency_contact_relationship: '',
+      emergency_contact_phone: '',
+      department: 'TI',
       role_title: '',
       unit: 'Matriz - São Paulo',
       manager: '',
@@ -77,6 +188,7 @@ export const Employees: React.FC = () => {
       status: 'ativo',
       restricted_notes: '',
     });
+    setIsModalOpen(true);
   };
 
   const handleExportCSV = () => {
@@ -133,7 +245,7 @@ export const Employees: React.FC = () => {
             <Download className="w-4 h-4" /> Exportar CSV
           </button>
           <button 
-            onClick={() => setIsModalOpen(true)}
+            onClick={handleNew}
             className="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-semibold shadow-xs transition-colors cursor-pointer"
           >
             <Plus className="w-4 h-4" /> Novo Funcionário
@@ -157,6 +269,20 @@ export const Employees: React.FC = () => {
         </a>
       </div>
 
+      {errorMessage && (
+        <div className="bg-rose-50 border border-rose-200 text-rose-800 rounded-xl px-4 py-3 text-sm flex items-start gap-2">
+          <ShieldAlert className="w-5 h-5 shrink-0 text-rose-600" />
+          <span>{errorMessage}</span>
+        </div>
+      )}
+
+      {successMessage && (
+        <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl px-4 py-3 text-sm flex items-start gap-2">
+          <CheckCircle2 className="w-5 h-5 shrink-0 text-emerald-600" />
+          <span>{successMessage}</span>
+        </div>
+      )}
+
       {/* Barra de Filtros e Busca */}
       <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex flex-col md:flex-row gap-3 items-center justify-between">
         <div className="relative w-full md:w-96">
@@ -177,10 +303,11 @@ export const Employees: React.FC = () => {
             className="text-sm border border-slate-300 rounded-lg px-3 py-2 bg-white text-slate-700 focus:outline-hidden focus:ring-2 focus:ring-blue-600"
           >
             <option value="todos">Todos os Departamentos</option>
-            <option value="Tecnologia da Informação">Tecnologia da Informação</option>
-            <option value="Recursos Humanos">Recursos Humanos</option>
-            <option value="Financeiro / Administrativo">Financeiro / Administrativo</option>
-            <option value="Operações">Operações</option>
+            <option value="TI">TI</option>
+            <option value="RH">RH</option>
+            <option value="Financeiro">Financeiro</option>
+            <option value="Pedagogia">Pedagogia</option>
+            <option value="GUESTA">GUESTA</option>
           </select>
         </div>
       </div>
@@ -200,7 +327,9 @@ export const Employees: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {filteredEmployees.map((emp) => (
+              {isLoading ? (
+                <tr><td colSpan={6} className="px-6 py-10 text-center text-sm text-slate-500">Carregando funcionários...</td></tr>
+              ) : filteredEmployees.map((emp) => (
                 <tr key={emp.id} className="hover:bg-slate-50/80 transition-colors">
                   <td className="px-6 py-4">
                     <div className="flex items-center space-x-3">
@@ -257,6 +386,9 @@ export const Employees: React.FC = () => {
                   </td>
                 </tr>
               ))}
+              {!isLoading && filteredEmployees.length === 0 && (
+                <tr><td colSpan={6} className="px-6 py-10 text-center text-sm text-slate-500">Nenhum funcionário encontrado.</td></tr>
+              )}
             </tbody>
           </table>
         </div>
@@ -268,10 +400,10 @@ export const Employees: React.FC = () => {
           <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto space-y-4">
             <div className="flex items-center justify-between border-b pb-3 border-slate-100">
               <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-                <Users className="w-5 h-5 text-blue-600" /> Cadastrar Novo Funcionário
+                <Users className="w-5 h-5 text-blue-600" /> {editingEmployee ? 'Editar Funcionário' : 'Cadastrar Novo Funcionário'}
               </h3>
               <button
-                onClick={() => setIsModalOpen(false)}
+                onClick={() => { setIsModalOpen(false); setEditingEmployee(null); }}
                 className="text-slate-400 hover:text-slate-600 p-1 rounded-lg"
               >
                 <X className="w-5 h-5" />
@@ -309,7 +441,7 @@ export const Employees: React.FC = () => {
 
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    E-mail Corporativo *
+                    E-mail *
                   </label>
                   <input
                     type="email"
@@ -323,13 +455,80 @@ export const Employees: React.FC = () => {
 
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Telefone Corporativo
+                    Contato
                   </label>
                   <input
                     type="text"
                     placeholder="(11) 90000-0000"
                     value={formData.phone}
                     onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-600"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    CPF
+                  </label>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    placeholder="000.000.000-00"
+                    maxLength={14}
+                    value={formData.cpf}
+                    onChange={(e) => setFormData({ ...formData, cpf: formatCpf(e.target.value) })}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-600"
+                  />
+                </div>
+
+                <div className="sm:col-span-2">
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Endereço
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Rua, número, complemento, bairro e cidade"
+                    value={formData.address}
+                    onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-600"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Nome do contato emergencial
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Ex: Maria da Silva"
+                    value={formData.emergency_contact_name}
+                    onChange={(e) => setFormData({ ...formData, emergency_contact_name: e.target.value })}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-600"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Relação
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Ex: Mãe, pai, cônjuge..."
+                    value={formData.emergency_contact_relationship}
+                    onChange={(e) => setFormData({ ...formData, emergency_contact_relationship: e.target.value })}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-600"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Telefone para contato emergencial
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="(11) 90000-0000"
+                    value={formData.emergency_contact_phone}
+                    onChange={(e) => setFormData({ ...formData, emergency_contact_phone: e.target.value })}
                     className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-600"
                   />
                 </div>
@@ -343,11 +542,11 @@ export const Employees: React.FC = () => {
                     onChange={(e) => setFormData({ ...formData, department: e.target.value })}
                     className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-600"
                   >
-                    <option value="Tecnologia da Informação">Tecnologia da Informação</option>
-                    <option value="Recursos Humanos">Recursos Humanos</option>
-                    <option value="Financeiro / Administrativo">Financeiro / Administrativo</option>
-                    <option value="Operações">Operações</option>
-                    <option value="Diretoria">Diretoria</option>
+                    <option value="TI">TI</option>
+                    <option value="RH">RH</option>
+                    <option value="Financeiro">Financeiro</option>
+                    <option value="Pedagogia">Pedagogia</option>
+                    <option value="GUESTA">GUESTA</option>
                   </select>
                 </div>
 
@@ -423,7 +622,7 @@ export const Employees: React.FC = () => {
               <div className="flex justify-end gap-2 pt-4 border-t border-slate-100">
                 <button
                   type="button"
-                  onClick={() => setIsModalOpen(false)}
+                  onClick={() => { setIsModalOpen(false); setEditingEmployee(null); }}
                   className="px-4 py-2 border border-slate-300 text-slate-700 rounded-lg text-sm font-medium hover:bg-slate-50 transition-colors"
                 >
                   Cancelar
@@ -432,7 +631,7 @@ export const Employees: React.FC = () => {
                   type="submit"
                   className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-semibold shadow-xs transition-colors"
                 >
-                  Salvar Funcionário
+                  {editingEmployee ? 'Atualizar Funcionário' : 'Salvar Funcionário'}
                 </button>
               </div>
             </form>
@@ -480,6 +679,14 @@ export const Employees: React.FC = () => {
                 <span className="font-semibold text-slate-800">{selectedEmployee.manager || 'Diretoria'}</span>
               </div>
               <div>
+                <span className="text-slate-400 block">Contato emergencial:</span>
+                <span className="font-semibold text-slate-800">
+                  {selectedEmployee.emergency_contact_name || 'Não informado'}
+                  {selectedEmployee.emergency_contact_relationship ? ` · ${selectedEmployee.emergency_contact_relationship}` : ''}
+                  {selectedEmployee.emergency_contact_phone ? ` · ${selectedEmployee.emergency_contact_phone}` : ''}
+                </span>
+              </div>
+              <div>
                 <span className="text-slate-400 block">Admissão:</span>
                 <span className="font-semibold text-slate-800">
                   {new Date(selectedEmployee.admission_date).toLocaleDateString('pt-BR')}
@@ -503,6 +710,12 @@ export const Employees: React.FC = () => {
             </div>
 
             <div className="flex justify-end pt-2">
+              <button
+                onClick={() => handleEdit(selectedEmployee)}
+                className="mr-auto px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-semibold transition-colors"
+              >
+                Editar Cadastro
+              </button>
               <button
                 onClick={() => setIsDetailsOpen(false)}
                 className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm font-semibold transition-colors"

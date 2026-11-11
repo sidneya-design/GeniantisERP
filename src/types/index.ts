@@ -1,4 +1,6 @@
-export type UserRole = 'admin' | 'ti' | 'rh' | 'financeiro' | 'consulta';
+// Os perfis antigos permanecem no tipo enquanto a migração do banco é aplicada
+// em todos os ambientes. O frontend novo utiliza principalmente admin, adm, ti e rh.
+export type UserRole = 'admin' | 'adm' | 'ti' | 'rh' | 'financeiro' | 'consulta';
 
 export interface UserProfile {
   id: string;
@@ -50,4 +52,3 @@ export interface ModulePermission {
   canEdit: boolean;
   canDelete: boolean;
 }
-

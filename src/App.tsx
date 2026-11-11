@@ -32,7 +32,14 @@ export const App: React.FC = () => {
               </ProtectedRoute>
             }
           >
-            <Route index element={<Dashboard />} />
+            <Route
+              index
+              element={
+                <ProtectedRoute moduleKey="overview">
+                  <Dashboard />
+                </ProtectedRoute>
+              }
+            />
             
             <Route
               path="funcionarios"

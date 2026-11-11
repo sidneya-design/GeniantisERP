@@ -8,18 +8,21 @@ import {
   CheckCircle2
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { EmployeeService } from '../services/employeeService';
+import { Employee } from '../types/employee';
 
 export const Birthdays: React.FC = () => {
   const { profile, user } = useAuth();
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [employees, setEmployees] = useState<Employee[]>([]);
 
   const currentUserEmail = profile?.email || user?.email || 'admin@geniantis.com';
-  const currentUserRole = profile?.role === 'admin' ? 'admin' : (profile?.role === 'ti' || profile?.role === 'rh') ? 'editor' : 'viewer';
+  const currentUserRole = profile?.role === 'admin' ? 'admin' : (profile?.role === 'adm' || profile?.role === 'rh') ? 'editor' : 'viewer';
 
   // Sincroniza a sessão com o iframe via postMessage ao carregar ou alternar usuário
-  const syncIframeSession = () => {
+  const syncIframeSession = (employeeList = employees) => {
     if (iframeRef.current && iframeRef.current.contentWindow) {
       const ssoData = {
         type: 'GENIANTIS_SSO_SYNC',
@@ -28,11 +31,26 @@ export const Birthdays: React.FC = () => {
         role: currentUserRole,
       };
       iframeRef.current.contentWindow.postMessage(ssoData, '*');
+      iframeRef.current.contentWindow.postMessage({
+        type: 'GENIANTIS_EMPLOYEES_SYNC',
+        employees: employeeList,
+      }, '*');
     }
   };
 
   useEffect(() => {
-    syncIframeSession();
+    let active = true;
+    EmployeeService.getEmployees()
+      .then((data) => {
+        if (!active) return;
+        setEmployees(data);
+        syncIframeSession(data);
+      })
+      .catch((error) => console.error('Erro ao carregar aniversariantes do cadastro central:', error));
+
+    return () => {
+      active = false;
+    };
   }, [currentUserEmail, currentUserRole]);
 
   const handleIframeLoad = () => {

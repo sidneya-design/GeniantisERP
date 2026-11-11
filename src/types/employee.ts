@@ -5,8 +5,13 @@ export interface Employee {
   registration_number?: string; // Matrícula opcional
   full_name: string;
   preferential_name?: string;
-  email: string; // E-mail corporativo
-  phone?: string; // Telefone corporativo
+  email: string;
+  cpf?: string;
+  phone?: string;
+  address?: string;
+  emergency_contact_name?: string;
+  emergency_contact_relationship?: string;
+  emergency_contact_phone?: string;
   department: string;
   role_title: string;
   unit: string;

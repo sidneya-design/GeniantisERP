@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { 
   Users, 
   Laptop, 
@@ -8,61 +8,88 @@ import {
   Globe, 
   Cake, 
   AlertTriangle,
-  Clock,
-  CheckCircle,
-  FileText
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { Link } from 'react-router-dom';
+import { EmployeeService } from '../services/employeeService';
+import { AssetService } from '../services/assetService';
 
 export const Dashboard: React.FC = () => {
   const { profile } = useAuth();
+  const [employeeStats, setEmployeeStats] = useState({ active: 0, away: 0, birthdays: 0 });
+  const [assetStats, setAssetStats] = useState({ inUse: 0, total: 0, available: 0, maintenance: 0 });
+
+  useEffect(() => {
+    let active = true;
+    Promise.all([EmployeeService.getEmployees(), AssetService.getAssets()])
+      .then(([employees, assets]) => {
+        if (!active) return;
+        const currentMonth = String(new Date().getMonth() + 1).padStart(2, '0');
+        const visibleEmployees = employees.filter((employee) => employee.status !== 'desligado');
+        setEmployeeStats({
+          active: employees.filter((employee) => employee.status === 'ativo').length,
+          away: employees.filter((employee) => employee.status === 'afastado').length,
+          birthdays: visibleEmployees.filter((employee) => employee.birth_date?.slice(5, 7) === currentMonth).length,
+        });
+        setAssetStats({
+          inUse: assets.filter((asset) => asset.status === 'em_uso').length,
+          total: assets.length,
+          available: assets.filter((asset) => asset.status === 'disponivel').length,
+          maintenance: assets.filter((asset) => asset.status === 'em_manutencao').length,
+        });
+      })
+      .catch((error) => console.error('Erro ao carregar métricas do Dashboard:', error));
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const metrics = [
     {
       title: 'Funcionários Ativos',
-      value: '42',
-      detail: '2 afastados • 0 pendências',
+      value: String(employeeStats.active),
+      detail: `${employeeStats.away} afastado(s) • ${employeeStats.active + employeeStats.away} visíveis`,
       icon: Users,
       color: 'text-blue-600 bg-blue-50 border-blue-100',
       link: '/funcionarios',
     },
     {
       title: 'Ativos de TI em Uso',
-      value: '68 / 85',
-      detail: '12 disponíveis • 5 em manutenção',
+      value: `${assetStats.inUse} / ${assetStats.total}`,
+      detail: `${assetStats.available} disponível(is) • ${assetStats.maintenance} em manutenção`,
       icon: Laptop,
       color: 'text-emerald-600 bg-emerald-50 border-emerald-100',
       link: '/ativos',
     },
     {
       title: 'Entregas & Empréstimos',
-      value: '68',
-      detail: '3 devoluções previstas esta semana',
+      value: '0',
+      detail: 'Nenhuma movimentação registrada',
       icon: ArrowLeftRight,
       color: 'text-indigo-600 bg-indigo-50 border-indigo-100',
       link: '/movimentacoes',
     },
     {
       title: 'Licenças Atribuídas',
-      value: '114 / 130',
-      detail: '16 licenças disponíveis',
+      value: '0 / 0',
+      detail: 'Nenhuma licença cadastrada',
       icon: CreditCard,
       color: 'text-purple-600 bg-purple-50 border-purple-100',
       link: '/assinaturas',
     },
     {
       title: 'Domínios Monitorados',
-      value: '8',
-      detail: '1 com renovação em 25 dias',
+      value: '0',
+      detail: 'Nenhum domínio cadastrado',
       icon: Globe,
       color: 'text-amber-600 bg-amber-50 border-amber-100',
       link: '/dominios',
     },
     {
       title: 'Aniversariantes do Mês',
-      value: '5',
-      detail: '1 aniversariante hoje!',
+      value: String(employeeStats.birthdays),
+      detail: employeeStats.birthdays === 0 ? 'Nenhum aniversariante neste mês' : 'Cadastrado(s) neste mês',
       icon: Cake,
       color: 'text-rose-600 bg-rose-50 border-rose-100',
       link: '/aniversariantes',
@@ -125,55 +152,12 @@ export const Dashboard: React.FC = () => {
               Pendências e Alertas Críticos
             </h3>
             <span className="text-xs font-semibold bg-amber-50 text-amber-700 px-2 py-0.5 rounded-full border border-amber-200">
-              3 Requerem Atenção
+              0 Requerem Atenção
             </span>
           </div>
 
-          <div className="space-y-3">
-            <div className="flex items-start gap-3 p-3 rounded-xl bg-slate-50 border border-slate-200">
-              <Clock className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
-              <div className="text-xs flex-1">
-                <span className="font-semibold text-slate-800 block">
-                  Renovação de Domínio Próxima: geniantis.com.br
-                </span>
-                <span className="text-slate-600">
-                  Expira em 25 dias (07/03/2026). Responsável: Sidney A.
-                </span>
-              </div>
-              <Link to="/dominios" className="text-xs text-blue-600 hover:underline font-semibold">
-                Ver
-              </Link>
-            </div>
-
-            <div className="flex items-start gap-3 p-3 rounded-xl bg-slate-50 border border-slate-200">
-              <Wrench className="w-5 h-5 text-rose-500 shrink-0 mt-0.5" />
-              <div className="text-xs flex-1">
-                <span className="font-semibold text-slate-800 block">
-                  Manutenção Aberta: Notebook Dell Latitude 3420 (PAT-0042)
-                </span>
-                <span className="text-slate-600">
-                  Em assistência técnica autorizada há 6 dias.
-                </span>
-              </div>
-              <Link to="/manutencoes" className="text-xs text-blue-600 hover:underline font-semibold">
-                Ver
-              </Link>
-            </div>
-
-            <div className="flex items-start gap-3 p-3 rounded-xl bg-slate-50 border border-slate-200">
-              <CheckCircle className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
-              <div className="text-xs flex-1">
-                <span className="font-semibold text-slate-800 block">
-                  Provisionamento de Licença Pendente: Microsoft 365 E3
-                </span>
-                <span className="text-slate-600">
-                  Solicitado para nova contratação no departamento TI.
-                </span>
-              </div>
-              <Link to="/assinaturas" className="text-xs text-blue-600 hover:underline font-semibold">
-                Ver
-              </Link>
-            </div>
+          <div className="p-5 rounded-xl bg-slate-50 border border-dashed border-slate-300 text-sm text-slate-500 text-center">
+            Nenhuma pendência ou alerta registrado.
           </div>
         </div>
 
@@ -184,35 +168,24 @@ export const Dashboard: React.FC = () => {
               <CreditCard className="w-5 h-5 text-blue-600" />
               Financeiro das Assinaturas & Aplicativos
             </h3>
-            <span className="text-xs text-slate-500">Mês Atual (Fev/2026)</span>
+            <span className="text-xs text-slate-500">Mês atual</span>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
               <span className="text-[11px] text-slate-500 font-medium uppercase">Custo Mensal Equivalente</span>
-              <div className="text-xl font-bold text-slate-800 mt-1">R$ 4.850,00</div>
-              <span className="text-[11px] text-emerald-600">Dentro do previsto</span>
+              <div className="text-xl font-bold text-slate-800 mt-1">R$ 0,00</div>
+              <span className="text-[11px] text-slate-500">Nenhuma assinatura cadastrada</span>
             </div>
             <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
               <span className="text-[11px] text-slate-500 font-medium uppercase">Cobranças em Aberto</span>
-              <div className="text-xl font-bold text-slate-800 mt-1">R$ 1.280,00</div>
-              <span className="text-[11px] text-amber-600">2 faturas a vencer</span>
+              <div className="text-xl font-bold text-slate-800 mt-1">R$ 0,00</div>
+              <span className="text-[11px] text-slate-500">Nenhuma cobrança em aberto</span>
             </div>
           </div>
 
-          <div className="space-y-2 pt-1 text-xs">
-            <div className="flex justify-between items-center py-1.5 border-b border-slate-100">
-              <span className="font-medium text-slate-700">Google Workspace (35 licenças)</span>
-              <span className="font-semibold text-slate-800">R$ 2.450,00 / mês</span>
-            </div>
-            <div className="flex justify-between items-center py-1.5 border-b border-slate-100">
-              <span className="font-medium text-slate-700">Microsoft 365 Business (15 licenças)</span>
-              <span className="font-semibold text-slate-800">R$ 1.120,00 / mês</span>
-            </div>
-            <div className="flex justify-between items-center py-1.5 border-b border-slate-100">
-              <span className="font-medium text-slate-700">OpenAI ChatGPT Teams & Gemini</span>
-              <span className="font-semibold text-slate-800">R$ 780,00 / mês</span>
-            </div>
+          <div className="pt-1 text-xs text-slate-500 text-center">
+            Cadastre assinaturas para acompanhar custos e cobranças aqui.
           </div>
         </div>
       </div>

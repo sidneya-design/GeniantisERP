@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Lock, Mail, Shield, AlertCircle } from 'lucide-react';
+import { getDefaultRouteForRole } from '../lib/permissions';
 
 export const Login: React.FC = () => {
   const { signIn, isMockSession } = useAuth();
@@ -21,7 +22,12 @@ export const Login: React.FC = () => {
       if (res.error) {
         setError(res.error.message || 'Credenciais inválidas.');
       } else {
-        navigate('/');
+        const lower = email.toLowerCase();
+        if (lower.includes('ti')) {
+          navigate(getDefaultRouteForRole('ti'));
+        } else {
+          navigate('/');
+        }
       }
     } catch (err: any) {
       setError(err?.message || 'Erro inesperado ao conectar.');
@@ -56,39 +62,39 @@ export const Login: React.FC = () => {
           {isMockSession && (
             <div className="mb-6 bg-blue-50 border border-blue-200 text-blue-900 px-4 py-3 rounded-xl text-xs space-y-1">
               <div className="font-semibold flex items-center gap-1.5">
-                <Shield className="w-4 h-4 text-blue-600" /> Modo Local de Desenvolvimento
+                <Shield className="w-4 h-4 text-blue-600" /> Perfis de Acesso Configurados
               </div>
               <p className="text-blue-700">
-                Você pode entrar com qualquer perfil para testar as permissões:
+                Clique em um perfil para preencher e testar suas permissões:
               </p>
-              <div className="grid grid-cols-2 gap-1 pt-1 font-mono text-[11px] text-blue-800">
+              <div className="grid grid-cols-1 gap-1 pt-1 font-mono text-[11px] text-blue-800">
                 <button
                   type="button"
                   onClick={() => setEmail('admin@geniantis.com')}
                   className="text-left hover:underline"
                 >
-                  • admin@geniantis.com
+                  • <strong>admin@geniantis.com</strong> (Vê Tudo)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setEmail('adm@geniantis.com')}
+                  className="text-left hover:underline"
+                >
+                  • <strong>adm@geniantis.com</strong> (Tudo menos Domínios e Config)
                 </button>
                 <button
                   type="button"
                   onClick={() => setEmail('ti@geniantis.com')}
                   className="text-left hover:underline"
                 >
-                  • ti@geniantis.com
+                  • <strong>ti@geniantis.com</strong> (Ativos, Entregas, Manutenções, Domínios)
                 </button>
                 <button
                   type="button"
                   onClick={() => setEmail('rh@geniantis.com')}
                   className="text-left hover:underline"
                 >
-                  • rh@geniantis.com
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setEmail('financeiro@geniantis.com')}
-                  className="text-left hover:underline"
-                >
-                  • financeiro@geniantis.com
+                  • <strong>rh@geniantis.com</strong> (Visão Geral, Funcionários, Aniversariantes)
                 </button>
               </div>
             </div>
@@ -148,4 +154,3 @@ export const Login: React.FC = () => {
     </div>
   );
 };
-

@@ -132,14 +132,14 @@
         <div class="glass-panel">
           <div style="background: #eff6ff; border: 1px solid #bfdbfe; color: #1e40af; padding: 0.75rem 1rem; border-radius: 10px; font-size: 0.85rem; margin-bottom: 1.25rem; display: flex; align-items: center; gap: 0.5rem;">
             <span>ℹ️</span>
-            <span>Os aniversariantes são sincronizados automaticamente a partir do módulo <strong>Funcionários</strong> do ERP.</span>
+            <span>Os aniversariantes ativos são sincronizados do módulo <strong>Funcionários</strong>. Ao desativar/desligar um colaborador no cadastro principal, ele sai automaticamente desta tela.</span>
           </div>
           <div class="controls-row">
             <input type="text" id="searchInput" class="form-control search-input" placeholder="🔍 Buscar aniversariante por nome ou e-mail...">
           </div>
-          <h2 class="form-title" style="margin-bottom: 1rem;"><span>🎂</span> Lista de Aniversariantes</h2>
+          <h2 class="form-title" style="margin-bottom: 1rem;"><span>🎂</span> Lista de Aniversariantes Ativos</h2>
 
-          <div id="contactsBulkBar" class="contacts-bulk-bar">
+          <div id="contactsBulkBar" class="contacts-bulk-bar" style="display: none !important;">
             <label class="contacts-bulk-select-all">
               <input type="checkbox" id="selectAllContacts">
               Selecionar todos os visíveis
@@ -154,12 +154,12 @@
             <table>
               <thead>
                 <tr>
-                  <th class="bulk-column"></th>
+                  <th class="bulk-column" style="display: none !important;"></th>
                   <th>Nome</th>
                   <th>E-mail</th>
                   <th>Data Nasc.</th>
                   <th>Idade</th>
-                  <th class="actions-column">Ações</th>
+                  <th class="actions-column" style="display: none !important;">Ações</th>
                 </tr>
               </thead>
               <tbody id="contactsTableBody">

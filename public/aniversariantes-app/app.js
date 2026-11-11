@@ -27,6 +27,8 @@ const API_BASE = '/.netlify/functions';
 let contatosList = [];
 let contatosRenderizadosAtuais = [];
 let contatosCarregados = false;
+let erpEmployees = [];
+let erpEmployeesReceived = false;
 const contatosSelecionados = new Set();
 let emailConfig = {
   email_assunto: 'Feliz Aniversário! 🎉',
@@ -73,51 +75,85 @@ const LOCAL_PREVIEW_DEFAULTS = {
 };
 let localPreviewState = null;
 
-function getLocalPreviewState() {
-  if (localPreviewState) return localPreviewState;
-  try {
-    const saved = JSON.parse(localStorage.getItem(LOCAL_PREVIEW_STORAGE_KEY));
-    localPreviewState = {
-      ...LOCAL_PREVIEW_DEFAULTS,
-      ...saved,
-      usuarios: saved?.usuarios || LOCAL_PREVIEW_DEFAULTS.usuarios,
-      contatos: saved?.contatos || LOCAL_PREVIEW_DEFAULTS.contatos,
-      config: { ...LOCAL_PREVIEW_DEFAULTS.config, ...(saved?.config || {}) },
-      nextContactId: saved?.nextContactId || LOCAL_PREVIEW_DEFAULTS.nextContactId
-    };
+function converterFuncionariosERP(employees) {
+  return (Array.isArray(employees) ? employees : [])
+    .filter(emp => emp && emp.status !== 'desligado' && emp.birth_date)
+    .map(emp => ({
+      id: `erp-${emp.id}`,
+      nome: emp.preferential_name || emp.full_name,
+      email: emp.email,
+      data_nascimento: emp.birth_date,
+      departamento: emp.department
+    }));
+}
 
-    // Sincronização automática com o cadastro central de funcionários do GeniantisERP
-    try {
-      const geniantisEmployeesRaw = localStorage.getItem('geniantis_employees');
-      if (geniantisEmployeesRaw) {
-        const geniantisEmployees = JSON.parse(geniantisEmployeesRaw);
-        geniantisEmployees.forEach(emp => {
-          if (!emp.birth_date || emp.status === 'desligado') return;
-          const idx = localPreviewState.contatos.findIndex(c => 
-            c.email && c.email.toLowerCase() === emp.email.toLowerCase()
-          );
-          if (idx >= 0) {
-            localPreviewState.contatos[idx].nome = emp.full_name;
-            localPreviewState.contatos[idx].data_nascimento = emp.birth_date;
-            localPreviewState.contatos[idx].departamento = emp.department;
-          } else {
-            localPreviewState.contatos.push({
-              id: `erp-${emp.id}`,
-              nome: emp.full_name,
-              email: emp.email,
-              data_nascimento: emp.birth_date,
-              departamento: emp.department
-            });
-          }
-        });
-      }
-    } catch (eSync) {
-      console.warn('Erro ao sincronizar funcionários no ParabénsFlow:', eSync);
-    }
+function aplicarFuncionariosERP(employees) {
+  erpEmployees = converterFuncionariosERP(employees);
+  erpEmployeesReceived = true;
+  contatosList = [...erpEmployees];
+  contatosCarregados = true;
 
-  } catch (error) {
-    localPreviewState = structuredClone(LOCAL_PREVIEW_DEFAULTS);
+  if (document.getElementById('contactsTableBody')) {
+    renderizarContatos(contatosList);
+    atualizarEstatisticas();
+    renderizarBanner();
   }
+}
+
+function getLocalPreviewState() {
+  if (!localPreviewState) {
+    try {
+      const saved = JSON.parse(localStorage.getItem(LOCAL_PREVIEW_STORAGE_KEY));
+      localPreviewState = {
+        ...LOCAL_PREVIEW_DEFAULTS,
+        ...saved,
+        usuarios: saved?.usuarios || LOCAL_PREVIEW_DEFAULTS.usuarios,
+        contatos: saved?.contatos || LOCAL_PREVIEW_DEFAULTS.contatos,
+        config: { ...LOCAL_PREVIEW_DEFAULTS.config, ...(saved?.config || {}) },
+        nextContactId: saved?.nextContactId || LOCAL_PREVIEW_DEFAULTS.nextContactId
+      };
+    } catch (error) {
+      localPreviewState = structuredClone(LOCAL_PREVIEW_DEFAULTS);
+    }
+  }
+
+  // Sincronização dinâmica com o cadastro central de funcionários do GeniantisERP
+  try {
+    const geniantisEmployeesRaw = localStorage.getItem('geniantis_employees');
+    if (geniantisEmployeesRaw) {
+      const geniantisEmployees = JSON.parse(geniantisEmployeesRaw);
+      geniantisEmployees.forEach(emp => {
+        // Se foi desligado/desativado no cadastro principal, remove da lista de aniversariantes
+        if (emp.status === 'desligado') {
+          localPreviewState.contatos = localPreviewState.contatos.filter(
+            c => !c.email || c.email.toLowerCase() !== emp.email.toLowerCase()
+          );
+          return;
+        }
+        if (!emp.birth_date) return;
+
+        const idx = localPreviewState.contatos.findIndex(c =>
+          c.email && c.email.toLowerCase() === emp.email.toLowerCase()
+        );
+        if (idx >= 0) {
+          localPreviewState.contatos[idx].nome = emp.full_name;
+          localPreviewState.contatos[idx].data_nascimento = emp.birth_date;
+          localPreviewState.contatos[idx].departamento = emp.department;
+        } else {
+          localPreviewState.contatos.push({
+            id: `erp-${emp.id}`,
+            nome: emp.full_name,
+            email: emp.email,
+            data_nascimento: emp.birth_date,
+            departamento: emp.department
+          });
+        }
+      });
+    }
+  } catch (eSync) {
+    console.warn('Erro ao sincronizar funcionários no ParabénsFlow:', eSync);
+  }
+
   return localPreviewState;
 }
 
@@ -297,6 +333,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         checkSession();
       }
     }
+
+    if (event.data && event.data.type === 'GENIANTIS_EMPLOYEES_SYNC') {
+      aplicarFuncionariosERP(event.data.employees || []);
+    }
   });
 });
 
@@ -364,11 +404,11 @@ function adaptarInterfacePelasPermissoes() {
   const ehAdmin = role === 'admin';
   const podeEditarContatos = ehAdmin || role === 'editor';
 
-  // O cadastro de contatos é gerenciado centralmente pelo módulo de Funcionários do ERP
+  // O cadastro e ativação/desativação de contatos é gerenciado centralmente pelo módulo de Funcionários do ERP
   if (cadastroPanel) cadastroPanel.style.display = 'none';
-  if (contactsBulkBar) contactsBulkBar.style.display = podeEditarContatos ? 'flex' : 'none';
-  actionsHeaders.forEach(el => el.style.display = podeEditarContatos ? 'table-cell' : 'none');
-  bulkColumns.forEach(el => el.style.display = podeEditarContatos ? '' : 'none');
+  if (contactsBulkBar) contactsBulkBar.style.display = 'none';
+  actionsHeaders.forEach(el => el.style.display = 'none');
+  bulkColumns.forEach(el => el.style.display = 'none');
 
   // Template de e-mail (somente Admin)
   if (emailSubject) emailSubject.disabled = !ehAdmin;
@@ -626,7 +666,26 @@ async function carregarContatos() {
   tbody.innerHTML = '<tr><td colspan="6" class="empty-state"><div class="loader"></div> Carregando...</td></tr>';
 
   try {
+    if (erpEmployeesReceived) {
+      contatosList = [...erpEmployees];
+      contatosCarregados = true;
+      renderizarContatos(contatosList);
+      atualizarEstatisticas();
+      renderizarBanner();
+      return;
+    }
+
     const res = await fetchAutenticado('/contacts');
+    // A base do ERP é a fonte oficial. Uma resposta antiga do ParabénsFlow
+    // não pode sobrescrever os funcionários recebidos via postMessage.
+    if (erpEmployeesReceived) {
+      contatosList = [...erpEmployees];
+      contatosCarregados = true;
+      renderizarContatos(contatosList);
+      atualizarEstatisticas();
+      renderizarBanner();
+      return;
+    }
     contatosList = await res.json();
     contatosCarregados = true;
     
@@ -670,26 +729,10 @@ function renderizarContatos(contatos) {
     }
 
     tr.innerHTML = `
-      <td class="bulk-column">
-        <input
-          type="checkbox"
-          class="contact-select-checkbox"
-          data-contact-select="1"
-          data-contact-id="${escapeHTML(c.id)}"
-          ${contatosSelecionados.has(c.id) ? 'checked' : ''}
-          onchange="toggleSelecionarContato('${c.id}', this.checked)"
-        >
-      </td>
       <td style="font-weight: 600;">${escapeHTML(c.nome)}</td>
       <td>${escapeHTML(c.email)}</td>
       <td>${dataFormatada}</td>
       <td><span class="badge badge-primary">${idade}</span></td>
-      ${showActions ? `
-      <td class="actions-cell">
-        <button class="action-btn" onclick="iniciarEdicao('${c.id}')" title="Editar">✏️</button>
-        <button class="action-btn delete" onclick="excluirContato('${c.id}')" title="Excluir">🗑️</button>
-      </td>
-      ` : ''}
     `;
     tbody.appendChild(tr);
   });

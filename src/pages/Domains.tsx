@@ -2,7 +2,7 @@ import React from 'react';
 import { Globe, Plus, AlertCircle, CheckCircle2, Shield, ExternalLink, Clock } from 'lucide-react';
 
 export const Domains: React.FC = () => {
-  const domains = [
+  const domains = []; /*
     {
       id: '1',
       domain: 'geniantis.com.br',
@@ -48,7 +48,7 @@ export const Domains: React.FC = () => {
       services: ['Aplicativo de Aniversariantes'],
       days_to_expire: 25,
     },
-  ];
+  */
 
   return (
     <div className="space-y-6">
@@ -68,13 +68,11 @@ export const Domains: React.FC = () => {
       </div>
 
       {/* Alerta de renovação iminente */}
-      <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-xs text-amber-900 flex items-start gap-3">
-        <Clock className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+      <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 text-xs text-slate-600 flex items-start gap-3">
+        <Clock className="w-5 h-5 text-slate-500 shrink-0 mt-0.5" />
         <div className="space-y-1">
-          <span className="font-semibold block">Atenção para Renovações em Menos de 30 Dias:</span>
-          <p className="text-amber-800">
-            O domínio <strong>geniantis.com.br</strong> expira em 25 dias (07/03/2026). Confirme o processo junto ao Registro.br e registre a nova expiração após a validação.
-          </p>
+          <span className="font-semibold block">Nenhuma renovação pendente.</span>
+          <p>Cadastre um domínio para acompanhar expirações e renovações.</p>
         </div>
       </div>
 
@@ -146,6 +144,11 @@ export const Domains: React.FC = () => {
             </div>
           </div>
         ))}
+        {domains.length === 0 && (
+          <div className="md:col-span-2 lg:col-span-3 bg-white rounded-2xl border border-dashed border-slate-300 p-10 text-center text-sm text-slate-500">
+            Nenhum domínio cadastrado.
+          </div>
+        )}
       </div>
     </div>
   );

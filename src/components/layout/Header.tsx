@@ -1,26 +1,38 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { Bell, LogOut, UserCircle2, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { UserRole } from '../../types';
+import { getDefaultRouteForRole } from '../../lib/permissions';
 
 export const Header: React.FC = () => {
   const { profile, signOut, isMockSession, switchDevRole } = useAuth();
+  const navigate = useNavigate();
   const [showNotifications, setShowNotifications] = useState(false);
 
   const roleColors: Record<UserRole, string> = {
     admin: 'bg-purple-100 text-purple-800 border-purple-200',
+    adm: 'bg-emerald-100 text-emerald-800 border-emerald-200',
     ti: 'bg-blue-100 text-blue-800 border-blue-200',
     rh: 'bg-pink-100 text-pink-800 border-pink-200',
-    financeiro: 'bg-emerald-100 text-emerald-800 border-emerald-200',
-    consulta: 'bg-slate-100 text-slate-700 border-slate-200',
+    financeiro: 'bg-amber-100 text-amber-800 border-amber-200',
+    consulta: 'bg-slate-100 text-slate-800 border-slate-200',
   };
 
   const roleLabels: Record<UserRole, string> = {
-    admin: 'Administrador',
-    ti: 'TI / Operações',
-    rh: 'Recursos Humanos',
-    financeiro: 'Financeiro',
-    consulta: 'Apenas Consulta',
+    admin: 'Admin (Total)',
+    adm: 'ADM (Sem Domínios/Config)',
+    ti: 'TI (Ativos, Entregas, Manut., Domínios)',
+    rh: 'RH (Visão Geral, Funcionários, Aniver.)',
+    financeiro: 'Financeiro (Assinaturas e Relatórios)',
+    consulta: 'Consulta (Somente Leitura)',
+  };
+
+  const handleRoleChange = (newRole: UserRole) => {
+    if (switchDevRole) {
+      switchDevRole(newRole);
+      navigate(getDefaultRouteForRole(newRole));
+    }
   };
 
   return (
@@ -32,26 +44,25 @@ export const Header: React.FC = () => {
         {isMockSession && (
           <span className="hidden md:inline-flex items-center gap-1 text-xs px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
             <AlertTriangle className="w-3 h-3 text-amber-500" />
-            Modo Local / Simulação
+            Modo Local
           </span>
         )}
       </div>
 
       <div className="flex items-center space-x-4">
-        {/* Seletor de Perfil Rápido para validação das permissões RBAC */}
+        {/* Seletor de Perfil Rápido */}
         {switchDevRole && (
           <div className="flex items-center text-xs space-x-1.5 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1">
-            <span className="text-slate-500 font-medium">Testar Perfil:</span>
+            <span className="text-slate-500 font-medium">Perfil:</span>
             <select
               value={profile?.role || 'admin'}
-              onChange={(e) => switchDevRole(e.target.value as UserRole)}
+              onChange={(e) => handleRoleChange(e.target.value as UserRole)}
               className="bg-transparent font-semibold text-slate-700 focus:outline-hidden cursor-pointer"
             >
-              <option value="admin">Admin</option>
-              <option value="ti">TI</option>
-              <option value="rh">RH</option>
-              <option value="financeiro">Financeiro</option>
-              <option value="consulta">Consulta</option>
+              <option value="admin">Admin (Vê tudo)</option>
+              <option value="adm">ADM (Sem Domínios/Config)</option>
+              <option value="ti">TI (Ativos, Entregas, Manut., Domínios)</option>
+              <option value="rh">RH (Visão Geral, Funcionários, Aniversariantes)</option>
             </select>
           </div>
         )}
@@ -76,16 +87,10 @@ export const Header: React.FC = () => {
               <div className="space-y-2">
                 <div className="p-2 rounded-lg bg-blue-50 border border-blue-100 text-blue-900">
                   <div className="font-medium flex items-center gap-1">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-blue-600" /> Módulo Aniversariantes Pronto
+                    <CheckCircle2 className="w-3.5 h-3.5 text-blue-600" /> Perfis Configurados
                   </div>
                   <p className="text-blue-700 mt-0.5">
-                    Aplicativo ParabénsFlow analisado e pronto para a etapa de integração.
-                  </p>
-                </div>
-                <div className="p-2 rounded-lg bg-slate-50 border border-slate-200 text-slate-700">
-                  <div className="font-medium">Segurança RBAC Ativa</div>
-                  <p className="text-slate-500 mt-0.5">
-                    5 perfis operacionais e permissões ativas em todos os 10 módulos.
+                    Perfis Admin, ADM, TI e RH configurados com permissões granulares por módulo.
                   </p>
                 </div>
               </div>
@@ -122,4 +127,3 @@ export const Header: React.FC = () => {
     </header>
   );
 };
-

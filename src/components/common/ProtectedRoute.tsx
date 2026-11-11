@@ -1,8 +1,9 @@
 import React from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { ModuleKey } from '../../types';
 import { ShieldAlert } from 'lucide-react';
+import { getDefaultRouteForRole } from '../../lib/permissions';
 
 interface ProtectedRouteProps {
   moduleKey?: ModuleKey;
@@ -28,6 +29,12 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ moduleKey, child
   }
 
   if (moduleKey && !canAccess(moduleKey)) {
+    const defaultRoute = getDefaultRouteForRole(profile?.role);
+    // Se a rota atual é overview e o perfil tem outra rota padrão (como TI -> /ativos), redireciona automaticamente
+    if (moduleKey === 'overview' && defaultRoute !== '/') {
+      return <Navigate to={defaultRoute} replace />;
+    }
+
     return (
       <div className="bg-white rounded-xl border border-slate-200 p-8 text-center max-w-lg mx-auto mt-12 shadow-xs">
         <div className="w-12 h-12 bg-rose-50 text-rose-600 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -38,12 +45,12 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ moduleKey, child
           Seu perfil atual (<span className="font-semibold uppercase">{profile?.role}</span>) não possui permissão para acessar este módulo.
         </p>
         <div className="mt-6">
-          <a
-            href="/"
+          <Link
+            to={defaultRoute}
             className="inline-flex items-center justify-center px-4 py-2 border border-slate-300 rounded-lg text-sm font-medium text-slate-700 bg-white hover:bg-slate-50 transition-colors"
           >
-            Voltar para Visão Geral
-          </a>
+            Ir para página inicial do perfil
+          </Link>
         </div>
       </div>
     );
@@ -51,4 +58,3 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ moduleKey, child
 
   return <>{children}</>;
 };
-
