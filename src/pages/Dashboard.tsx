@@ -88,12 +88,6 @@ export const Dashboard: React.FC = () => {
           >
             <ArrowLeftRight className="w-4 h-4" /> Nova Entrega
           </Link>
-          <Link
-            to="/relatorios"
-            className="inline-flex items-center gap-1.5 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm font-semibold transition-colors"
-          >
-            <FileText className="w-4 h-4" /> Relatórios
-          </Link>
         </div>
       </div>
 

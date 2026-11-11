@@ -69,6 +69,7 @@ npm run build
 - [x] **Etapa 1: Análise e Repositório**: Estrutura Git criada (`main` protegida, `develop` ativa), dependências e documentação central. Aplicativo de aniversariantes analisado e preservado.
 - [x] **Etapa 2: Base, Autenticação e Perfis (RBAC)**: Login de usuários com perfis (Admin, TI, RH, Financeiro, Consulta), RLS e layout responsivo com menu lateral retrátil e cabeçalho corporativo.
 - [x] **Integração do Aplicativo de Aniversariantes (ParabénsFlow)**: Aplicativo original copiado para `public/aniversariantes-app/` e funções Netlify serverless em `netlify/functions/`. Implementado SSO transparente (login como admin no ERP autentica automaticamente no ParabénsFlow sem segundo login via sessionStorage e postMessage).
+- [ ] **Módulo de Relatórios**: Aba ocultada temporariamente da interface a pedido do usuário até definição dos relatórios específicos a utilizar.
 - [ ] **Etapa 3: Módulo de Funcionários**: A iniciar.
 - [ ] **Etapa 4: Inventário de Ativos de TI, Entregas e Devoluções**: A iniciar.
 - [ ] **Etapa 5: Termos, Desligamento e Manutenções**: A iniciar.
@@ -83,3 +84,4 @@ Iniciar a **Etapa 3: Módulo de Funcionários**:
 - Migração SQL da tabela `employees` (matrícula, nome completo, preferencial, contatos, departamento, cargo, unidade, gestor, datas de admissão/desligamento, situação, observações restritas).
 - Ficha individual do colaborador (histórico, ativos custodiados e licenças vinculadas).
 - Importador CSV com validação por linha e prevenção de duplicidades.
+
