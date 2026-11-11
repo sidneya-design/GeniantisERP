@@ -25,6 +25,7 @@ O **GeniantisERP** é um sistema web modular interno para gestão integrada de:
 - **Autenticação**: Supabase Auth com RBAC via tabela `profiles` com 5 perfis: `admin`, `ti`, `rh`, `financeiro`, `consulta`.
 - **Hospedagem & CI/CD**: Netlify com build automático acoplado ao Git, suporte a rotas SPA (`netlify.toml`).
 - **Armazenamento de Arquivos**: Supabase Storage em buckets privados (termos, notas fiscais, fotos de ativos e termos assinados).
+- **Módulo de Aniversariantes**: ParabénsFlow original preservado em `public/aniversariantes-app/` e Netlify Serverless Functions em `netlify/functions/`, com SSO transparente (autenticação automática no ERP reflete no app sem segundo login).
 
 ---
 
@@ -46,18 +47,13 @@ O **GeniantisERP** é um sistema web modular interno para gestão integrada de:
 
 ## 4. Como Executar e Testar Localmente
 
-### Pré-requisitos
-- Node.js v18+ (ambiente atual: v24.16.0)
-- npm v9+
-
-### Passos
 ```bash
 # 1. Instalar dependências
 npm install
 
 # 2. Configurar variáveis de ambiente
 cp .env.example .env
-# Preencha VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY
+# Preencha VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY (se tiver banco real)
 
 # 3. Rodar em ambiente de desenvolvimento
 npm run dev
@@ -68,32 +64,22 @@ npm run build
 
 ---
 
-## 5. Modelagem e Migrações de Banco (Supabase)
-As migrações SQL ficam em `supabase/migrations/` e devem ser aplicadas em ordem cronológica:
-- `20260211000000_initial_schema.sql`: Perfis de usuário (`profiles`), triggers de criação automática de usuário auth, RLS de segurança e controle de roles.
-- *(Migrações dos próximos módulos adicionadas sequencialmente).*
+## 5. Status das Etapas de Implementação
+
+- [x] **Etapa 1: Análise e Repositório**: Estrutura Git criada (`main` protegida, `develop` ativa), dependências e documentação central. Aplicativo de aniversariantes analisado e preservado.
+- [x] **Etapa 2: Base, Autenticação e Perfis (RBAC)**: Login de usuários com perfis (Admin, TI, RH, Financeiro, Consulta), RLS e layout responsivo com menu lateral retrátil e cabeçalho corporativo.
+- [x] **Integração do Aplicativo de Aniversariantes (ParabénsFlow)**: Aplicativo original copiado para `public/aniversariantes-app/` e funções Netlify serverless em `netlify/functions/`. Implementado SSO transparente (login como admin no ERP autentica automaticamente no ParabénsFlow sem segundo login via sessionStorage e postMessage).
+- [ ] **Etapa 3: Módulo de Funcionários**: A iniciar.
+- [ ] **Etapa 4: Inventário de Ativos de TI, Entregas e Devoluções**: A iniciar.
+- [ ] **Etapa 5: Termos, Desligamento e Manutenções**: A iniciar.
+- [ ] **Etapa 6: Assinaturas, Licenças e Financeiro de Aplicativos**: A iniciar.
+- [ ] **Etapa 7: Domínios e Renovações**: A iniciar.
+- [ ] **Etapa 9: Dashboard Consolidado, Relatórios CSV e Homologação Netlify**: A iniciar.
 
 ---
 
-## 6. Status das Etapas de Implementação
-
-- [x] **Etapa 1: Análise e Repositório**: Estrutura Git criada (`main` protegida, `develop` ativa), dependências estáveis instaladas e documentação compartilhada criada. Aplicativo de aniversariantes analisado e preservado.
-- [x] **Etapa 2: Base, Autenticação e Perfis (RBAC)**: Migração inicial SQL (`profiles`, `units`, `departments`, `audit_logs`, triggers e RLS), cliente Supabase resiliente, autenticação e matriz de papéis (Admin, TI, RH, Financeiro, Consulta), layout com Sidebar recolhível e Header com avisos e teste de perfis.
-- [ ] **Etapa 3: Módulo de Funcionários**: Modelagem de funcionários no PostgreSQL, ficha completa (ativos, licenças, pendências), importação CSV e regras de negócio.
-- [ ] **Etapa 4: Inventário de Ativos de TI, Entregas e Devoluções**: Modelagem de ativos, transações atômicas de movimentação, etiquetas QR code e histórico.
-- [ ] **Etapa 5: Termos, Desligamento e Manutenções**: Emissão de termos PDF, checklist de desligamento e ordens de serviço de manutenção.
-- [ ] **Etapa 6: Assinaturas, Licenças e Financeiro de Aplicativos**: Contratos, atribuição nominal de licenças e controle financeiro exclusivo de assinaturas.
-- [ ] **Etapa 7: Domínios e Renovações**: Controle administrativo de domínios, subdomínios, DNS e confirmação de renovação.
-- [ ] **Etapa 8: Integração do Aplicativo de Aniversariantes**: Integração das Netlify Functions e Blobs do ParabénsFlow sem duplicidade cadastral.
-- [ ] **Etapa 9: Dashboard Consolidado, Relatórios CSV e Homologação Netlify**: Finalização das métricas consolidadas, testes finais e instruções de deploy.
-
----
-
-## 7. Próxima Etapa Recomendada
+## 6. Próxima Etapa Recomendada
 Iniciar a **Etapa 3: Módulo de Funcionários**:
-- Criar a migração `supabase/migrations/20260211000001_employees_schema.sql` com:
-  - Tabela `employees` (matrícula opcional, nome completo, preferencial, e-mail/telefone corporativos, departamento, cargo, unidade, gestor, datas de admissão/desligamento, situação: ativo, afastado, desligado, observações restritas).
-  - Restrições e índices de unicidade de e-mail corporativo e matrícula.
-  - Políticas de RLS: RH e Admin possuem permissão de escrita; TI pode consultar e vincular ativos/licenças; Financeiro e Consulta possuem acesso de leitura específico.
-  - Tela de ficha detalhada do colaborador com abas de ativos custodiados, histórico e licenças.
-  - Importador CSV com validação por linha e pré-visualização.
+- Migração SQL da tabela `employees` (matrícula, nome completo, preferencial, contatos, departamento, cargo, unidade, gestor, datas de admissão/desligamento, situação, observações restritas).
+- Ficha individual do colaborador (histórico, ativos custodiados e licenças vinculadas).
+- Importador CSV com validação por linha e prevenção de duplicidades.

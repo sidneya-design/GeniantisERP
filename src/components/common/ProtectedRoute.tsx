@@ -51,3 +51,4 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ moduleKey, child
 
   return <>{children}</>;
 };
+

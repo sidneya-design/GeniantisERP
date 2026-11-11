@@ -50,3 +50,4 @@ export interface ModulePermission {
   canEdit: boolean;
   canDelete: boolean;
 }
+

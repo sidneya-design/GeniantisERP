@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Painel de Aniversariantes 🎉</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Dancing+Script:wght@500;600;700&family=Caveat:wght@500;600;700&family=Pacifico&display=swap" rel="stylesheet" crossorigin="anonymous">
+  <link rel="stylesheet" href="style.css?v=20260713-10">
+</head>
+<body>
+
+  <!-- Notificações Toast -->
+  <div id="toastContainer" class="toast-container"></div>
+
+  <!-- Cabeçalho -->
+  <header>
+    <div class="logo">
+      <div class="logo-icon">🎉</div>
+      <div>
+        <h1>ParabénsFlow</h1>
+        <span>Gerenciador de E-mails de Aniversário</span>
+      </div>
+    </div>
+    <div style="display: flex; align-items: center; gap: 1rem;">
+      <span id="userEmailBadge" style="font-size: 0.85rem; color: var(--text-secondary); background: rgba(255,255,255,0.03); border: 1px solid var(--panel-border); padding: 0.4rem 0.8rem; border-radius: 8px; display: none;"></span>
+      <button id="btnHeaderLogout" class="btn btn-secondary" style="padding: 0.4rem 0.8rem; font-size: 0.8rem; border-radius: 8px; display: none;">Sair</button>
+      <div id="statusBadge" class="badge badge-primary">
+        Detectando conexão...
+      </div>
+    </div>
+  </header>
+
+  <!-- Conteúdo Principal -->
+  <main>
+    <!-- Coluna Lateral: Navegação e Estatísticas -->
+    <aside class="navigation-panel glass-panel">
+      <div class="nav-buttons">
+        <button class="nav-btn active" data-tab="tab-contacts">
+          <span class="nav-btn-icon">👥</span> Gerenciar Contatos
+        </button>
+        <button class="nav-btn" data-tab="tab-template">
+          <span class="nav-btn-icon">✉️</span> Template de E-mail
+        </button>
+        <button class="nav-btn" data-tab="tab-dispatch">
+          <span class="nav-btn-icon">⚡</span> Enviar & Testar
+        </button>
+        <button class="nav-btn" data-tab="tab-banner">
+          <span class="nav-btn-icon">🎨</span> Banner do Ano
+        </button>
+        <button class="nav-btn" data-tab="tab-profile">
+          <span class="nav-btn-icon">🔒</span> Acesso & Perfil
+        </button>
+      </div>
+
+      <div class="stats-container">
+        <h3>Estatísticas</h3>
+        <div class="stat-item">
+          <span class="stat-label">Total de Contatos</span>
+          <span id="statTotal" class="stat-val">0</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">Aniversariantes do Mês</span>
+          <span id="statMonth" class="stat-val">0</span>
+        </div>
+        <ul id="statMonthList" class="stat-names"></ul>
+        <div class="stat-item">
+          <span class="stat-label">Aniversariantes de Hoje</span>
+          <span id="statToday" class="stat-val" style="color: var(--secondary)">0</span>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Coluna Direita: Conteúdo das Abas -->
+    <section class="content-area">
+      
+      <!-- ABA 1: GERENCIAR CONTATOS -->
+      <div id="tab-contacts" class="tab-content active">
+        <div id="cadastroContatosPanel" class="glass-panel" style="margin-bottom: 2rem;">
+          <!-- Sub-abas de Cadastro -->
+          <div class="sub-tabs">
+            <button type="button" class="sub-tab-btn active" data-subtab="single-register">Cadastro Individual</button>
+            <button type="button" class="sub-tab-btn" data-subtab="bulk-register">Importação em Lote</button>
+          </div>
+
+          <!-- Conteúdo: Cadastro Individual -->
+          <div id="single-register" class="subtab-content active">
+            <form id="contactForm">
+              <input type="hidden" id="contactId">
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                <div class="form-group">
+                  <label for="contactName">Nome Completo</label>
+                  <input type="text" id="contactName" class="form-control" placeholder="Ex: Maria Silva" required>
+                </div>
+                <div class="form-group">
+                  <label for="contactEmail">E-mail</label>
+                  <input type="email" id="contactEmail" class="form-control" placeholder="Ex: maria@email.com" required>
+                </div>
+              </div>
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; align-items: flex-end;">
+                <div class="form-group">
+                  <label for="contactBirthdate">Data de Nascimento</label>
+                  <input type="date" id="contactBirthdate" class="form-control" required>
+                </div>
+                <div class="form-group" style="text-align: right;">
+                  <button type="button" id="btnCancelEdit" class="btn btn-secondary" style="display: none; margin-right: 0.5rem;">Cancelar</button>
+                  <button type="submit" class="btn btn-primary" id="btnSubmitContact">Salvar Contato</button>
+                </div>
+              </div>
+            </form>
+          </div>
+
+          <!-- Conteúdo: Importação em Lote -->
+          <div id="bulk-register" class="subtab-content">
+            <p style="color: var(--text-secondary); margin-bottom: 1rem; font-size: 0.85rem; line-height: 1.4;">
+              Cole seu CSV/lista de contatos abaixo. Cada contato deve estar em uma linha diferente. O separador pode ser <strong>vírgula</strong>, <strong>ponto e vírgula</strong> ou <strong>tabulação</strong>. Cabeçalho é opcional.<br>
+              <strong>Formato esperado:</strong> <code>Nome, E-mail, Data de Nascimento (DD/MM/AAAA, DD-MM-AAAA ou AAAA-MM-DD)</code>.
+            </p>
+            <form id="bulkForm">
+              <div class="form-group">
+                <textarea id="bulkTextarea" class="form-control" style="min-height: 130px; font-family: monospace; font-size: 0.85rem;" 
+                  placeholder="Exemplo:&#10;Nome, E-mail, Data de Nascimento&#10;Maria Silva, maria@email.com, 15/08/1995&#10;José Santos; jose@email.com; 03/12/1987&#10;Ana Oliveira&#9;ana@email.com&#9;25/04" required></textarea>
+              </div>
+              <div class="row-actions" style="margin-top: 0.5rem;">
+                <button type="submit" class="btn btn-primary" id="btnSubmitBulk">Importar Lista de Contatos</button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <div class="glass-panel">
+          <div class="controls-row">
+            <input type="text" id="searchInput" class="form-control search-input" placeholder="🔍 Buscar contato por nome ou e-mail...">
+          </div>
+          <h2 class="form-title" style="margin-bottom: 1rem;"><span>📋</span> Lista de Contatos</h2>
+
+          <div id="contactsBulkBar" class="contacts-bulk-bar">
+            <label class="contacts-bulk-select-all">
+              <input type="checkbox" id="selectAllContacts">
+              Selecionar todos os visíveis
+            </label>
+            <div class="contacts-bulk-actions">
+              <span id="bulkSelectionCount" class="contacts-bulk-count">0 selecionados</span>
+              <button type="button" id="btnBulkDeleteContacts" class="btn btn-danger" disabled>Excluir selecionados</button>
+            </div>
+          </div>
+          
+          <div class="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th class="bulk-column"></th>
+                  <th>Nome</th>
+                  <th>E-mail</th>
+                  <th>Data Nasc.</th>
+                  <th>Idade</th>
+                  <th class="actions-column">Ações</th>
+                </tr>
+              </thead>
+              <tbody id="contactsTableBody">
+                <tr>
+                  <td colspan="6" class="empty-state">
+                    <div class="loader"></div> Carregando contatos...
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ABA 2: TEMPLATE DE E-MAIL -->
+      <div id="tab-template" class="tab-content">
+        <div class="glass-panel">
+          <div id="templateViewOnlyNotice" class="badge badge-primary" style="display: none; width: 100%; text-align: center; margin-bottom: 1.5rem; padding: 0.75rem 1rem; border-radius: 10px; font-size: 0.9rem; background: rgba(245, 158, 11, 0.15); color: var(--warning); border: 1px solid rgba(245, 158, 11, 0.2); white-space: normal; line-height: 1.4;">
+            ⚠️ Modo de Visualização: Você não possui permissão para editar o template de e-mail.
+          </div>
+          <h2 class="form-title"><span>✉️</span> Customização do E-mail</h2>
+          <p style="color: var(--text-secondary); margin-bottom: 1.5rem; font-size: 0.95rem;">
+            Personalize o assunto e a mensagem que os aniversariantes receberão. Você pode usar a tag <strong>{{nome}}</strong> para que o sistema insira automaticamente o primeiro nome do aniversariante.
+          </p>
+
+          <form id="templateForm">
+            <div class="form-group">
+              <label for="emailSubject">Assunto do E-mail</label>
+              <input type="text" id="emailSubject" class="form-control" placeholder="Ex: Feliz Aniversário, {{nome}}! 🎉" required>
+            </div>
+            <div class="form-group">
+              <label for="emailBody">Corpo da Mensagem (Texto/HTML)</label>
+              <textarea id="emailBody" class="form-control" placeholder="Olá {{nome}},\n\nDesejamos a você um dia incrível..." required></textarea>
+            </div>
+            <div class="form-group">
+              <label for="emailImagemInput">Imagem do E-mail (opcional, aparece após o texto da mensagem)</label>
+              <input type="file" id="emailImagemInput" class="form-control" accept="image/png, image/jpeg, image/gif">
+              <div id="emailImagemPreviewWrapper" style="display: none; margin-top: 0.75rem;">
+                <img id="emailImagemPreview" src="" alt="Preview da imagem do e-mail" style="max-width: 240px; max-height: 160px; border-radius: 10px; display: block; margin-bottom: 0.5rem;">
+                <button type="button" id="btnRemoverImagemTemplate" class="btn btn-secondary">Remover Imagem</button>
+              </div>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1.5rem; border-top: 1px solid var(--panel-border); padding-top: 1.5rem;">
+              <div class="form-group">
+                <label for="emailCC">Cópia (CC) — opcional</label>
+                <input type="text" id="emailCC" class="form-control" placeholder="Ex: rh@geniantis.com, outro@geniantis.com">
+              </div>
+              <div class="form-group">
+                <label for="emailCCO">Cópia Oculta (CCO) — opcional</label>
+                <input type="text" id="emailCCO" class="form-control" placeholder="Ex: usuario@removido.com">
+              </div>
+            </div>
+            <p style="color: var(--text-secondary); font-size: 0.85rem; margin-top: -0.75rem; margin-bottom: 1rem;">
+              Esses endereços recebem uma cópia de todo e-mail de aniversário enviado (separe vários e-mails por vírgula).
+            </p>
+            <div class="row-actions">
+              <button type="submit" class="btn btn-primary">Salvar Template</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- ABA 3: ENVIAR & TESTAR -->
+      <div id="tab-dispatch" class="tab-content">
+        <div class="glass-panel">
+          <div id="dispatchViewOnlyNotice" class="badge badge-primary" style="display: none; width: 100%; text-align: center; margin-bottom: 1.5rem; padding: 0.75rem 1rem; border-radius: 10px; font-size: 0.9rem; background: rgba(245, 158, 11, 0.15); color: var(--warning); border: 1px solid rgba(245, 158, 11, 0.2); white-space: normal; line-height: 1.4;">
+            ⚠️ Modo de Visualização: O disparo manual de e-mails está desativado para o seu perfil.
+          </div>
+          <h2 class="form-title"><span>⚡</span> Execução e Logs de Disparo</h2>
+          <p style="color: var(--text-secondary); margin-bottom: 1.5rem; font-size: 0.95rem;">
+            O disparo dos e-mails é feito de forma automática diariamente pelo Netlify. No entanto, você pode testar o fluxo de envio imediatamente clicando no botão abaixo.
+          </p>
+          
+          <div style="display: flex; gap: 1rem; align-items: center; margin-bottom: 1.5rem;">
+            <button id="btnRunManual" class="btn btn-primary">
+              🚀 Verificar e Disparar E-mails do Dia
+            </button>
+            <button id="btnClearConsole" class="btn btn-secondary">
+              Limpar Console
+            </button>
+          </div>
+
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 2rem;">
+            <h3 style="font-size: 1.1rem; color: var(--text-primary);">Console do Sistema</h3>
+            <span id="consoleStatus" style="font-size: 0.85rem; color: var(--text-muted);">Pronto</span>
+          </div>
+          
+          <div id="systemConsole" class="console">
+            <div class="console-line info">[Sistema] Console inicializado. Aguardando ações...</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ABA: BANNER DO ANO -->
+      <div id="tab-banner" class="tab-content">
+        <div class="glass-panel" style="margin-bottom: 2rem;">
+          <h2 class="form-title"><span>🎨</span> Personalizar Banner</h2>
+          <p style="color: var(--text-secondary); margin-bottom: 1.5rem; font-size: 0.95rem;">
+            Gere o calendário anual de aniversariantes pronto para impressão em <strong>A4</strong>. Os nomes são preenchidos automaticamente a partir dos contatos cadastrados. Personalize abaixo — a prévia atualiza na hora.
+          </p>
+
+          <form id="bannerForm">
+            <div class="banner-grid-3" style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem;">
+              <div class="form-group">
+                <label for="bannerTitulo1">Título (linha 1)</label>
+                <input type="text" id="bannerTitulo1" class="form-control" placeholder="Calendário">
+              </div>
+              <div class="form-group">
+                <label for="bannerLigacao">Palavra de ligação</label>
+                <input type="text" id="bannerLigacao" class="form-control" placeholder="dos">
+              </div>
+              <div class="form-group">
+                <label for="bannerTitulo2">Título (linha 2)</label>
+                <input type="text" id="bannerTitulo2" class="form-control" placeholder="Aniversariantes">
+              </div>
+            </div>
+
+            <div class="banner-grid-4" style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 1rem;">
+              <div class="form-group">
+                <label for="bannerPaleta">Paleta de cores</label>
+                <select id="bannerPaleta" class="form-control">
+                  <option value="colorida">Colorida (original)</option>
+                  <option value="pastel">Pastel</option>
+                  <option value="azul">Tons de Azul</option>
+                  <option value="elegante">Elegante (Dourado)</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="bannerFonte">Fonte do banner</label>
+                <select id="bannerFonte" class="form-control">
+                  <option value="'Dancing Script', cursive">Manuscrita (Dancing Script)</option>
+                  <option value="'Caveat', cursive">Casual (Caveat)</option>
+                  <option value="'Pacifico', cursive">Divertida (Pacifico)</option>
+                  <option value="'Outfit', sans-serif">Moderna (Outfit)</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="bannerCorNomes">Cor dos nomes</label>
+                <input type="color" id="bannerCorNomes" class="form-control" value="#2E75B6" style="padding: 0.35rem; height: 48px; cursor: pointer;">
+              </div>
+              <div class="form-group">
+                <label for="bannerNomeExibicao">Exibição do nome</label>
+                <select id="bannerNomeExibicao" class="form-control">
+                  <option value="primeiro">Primeiro nome</option>
+                  <option value="completo">Nome completo</option>
+                </select>
+              </div>
+
+            </div>
+
+            <div style="display: flex; gap: 2rem; align-items: center; flex-wrap: wrap; margin-bottom: 0.5rem;">
+              <label style="display: flex; align-items: center; gap: 0.5rem; color: var(--text-secondary); font-size: 0.9rem; cursor: pointer;">
+                <input type="checkbox" id="bannerMostrarBaloes" checked> 🎈 Mostrar balões
+              </label>
+              <label style="display: flex; align-items: center; gap: 0.5rem; color: var(--text-secondary); font-size: 0.9rem; cursor: pointer;">
+                <input type="checkbox" id="bannerMostrarBolo" checked> 🎂 Mostrar bolo
+              </label>
+              <label style="display: flex; align-items: center; gap: 0.5rem; color: var(--text-secondary); font-size: 0.9rem; cursor: pointer;">
+                <input type="checkbox" id="bannerMostrarDia" checked> 🔢 Mostrar dia do aniversário
+              </label>
+            </div>
+
+            <div class="row-actions">
+              <button type="button" id="btnBannerReset" class="btn btn-secondary">Restaurar Padrão</button>
+              <button type="button" id="btnBannerPrint" class="btn btn-secondary">🖨️ Imprimir</button>
+              <button type="button" id="btnBannerPDF" class="btn btn-primary">📥 Baixar PDF</button>
+            </div>
+          </form>
+        </div>
+
+        <div class="glass-panel">
+          <h2 class="form-title"><span>👁️</span> Prévia (folha A4)</h2>
+          <div id="bannerPreviewWrap" class="banner-preview-wrap">
+            <div id="bannerPage" class="banner-page"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ABA 4: ACESSO & PERFIL -->
+      <div id="tab-profile" class="tab-content">
+        <div class="glass-panel">
+          <h2 class="form-title"><span>🔒</span> Configurações de Acesso</h2>
+          <p style="color: var(--text-secondary); margin-bottom: 1.5rem; font-size: 0.95rem;">
+            Altere suas credenciais de acesso administrativas abaixo. Por segurança, você deve informar sua senha atual para confirmar quaisquer alterações.
+          </p>
+
+          <form id="profileForm">
+            <div class="form-group">
+              <label for="profileEmail">E-mail de Acesso</label>
+              <input type="email" id="profileEmail" class="form-control" required>
+            </div>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+              <div class="form-group">
+                <label for="profileNewPassword">Nova Senha (deixe em branco para não alterar)</label>
+                <input type="password" id="profileNewPassword" class="form-control" placeholder="Mínimo 6 caracteres">
+              </div>
+              <div class="form-group">
+                <label for="profileConfirmPassword">Confirmar Nova Senha</label>
+                <input type="password" id="profileConfirmPassword" class="form-control" placeholder="Repita a nova senha">
+              </div>
+            </div>
+
+            <div class="form-group" style="margin-top: 1.5rem; border-top: 1px solid var(--panel-border); padding-top: 1.5rem;">
+              <label for="profileCurrentPassword">Senha Atual (Obrigatória para confirmar)</label>
+              <input type="password" id="profileCurrentPassword" class="form-control" placeholder="Confirme sua senha atual" required>
+            </div>
+
+            <div class="row-actions">
+              <button type="submit" class="btn btn-primary" id="btnSubmitProfile">Salvar Alterações</button>
+            </div>
+          </form>
+        </div>
+
+        <div class="glass-panel" style="margin-top: 2rem;">
+          <h2 class="form-title"><span>➕</span> Adicionar Novo Administrador</h2>
+          <p style="color: var(--text-secondary); margin-bottom: 1.5rem; font-size: 0.95rem;">
+            Cadastre um novo usuário para acessar o painel. A pessoa poderá trocar a senha depois em "Acesso & Perfil".
+          </p>
+
+          <form id="newAdminForm">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+              <div class="form-group">
+                <label for="newAdminEmail">E-mail</label>
+                <input type="email" id="newAdminEmail" class="form-control" required>
+              </div>
+              <div class="form-group">
+                <label for="newAdminPassword">Senha Provisória</label>
+                <input type="password" id="newAdminPassword" class="form-control" placeholder="Mínimo 6 caracteres" required>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="newAdminRole">Nível de Acesso</label>
+              <select id="newAdminRole" class="form-control">
+                <option value="admin">Administrador (acesso total)</option>
+                <option value="editor">Editor (somente adicionar, editar e remover contatos)</option>
+                <option value="viewer">Leitor (somente visualização)</option>
+              </select>
+            </div>
+
+            <div class="row-actions">
+              <button type="submit" class="btn btn-primary" id="btnSubmitNewAdmin">Adicionar Usuário</button>
+            </div>
+          </form>
+        </div>
+
+        <div class="glass-panel" style="margin-top: 2rem;">
+          <h2 class="form-title"><span>👥</span> Usuários Cadastrados</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>E-mail</th>
+                <th>Nível de Acesso</th>
+                <th>Ações</th>
+              </tr>
+            </thead>
+            <tbody id="usersTableBody">
+              <tr><td colspan="3" class="empty-state">Carregando...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </section>
+  </main>
+
+  <!-- Rodapé Principal -->
+  <footer style="text-align: center; padding: 2rem; color: var(--text-muted); font-size: 0.85rem; border-top: 1px solid var(--panel-border); max-width: 1200px; margin: 3rem auto 0 auto; width: 100%;">
+    Direitos Reservados @sidneyAmorim &copy; 2026
+  </footer>
+
+  <!-- Tela de Login Overlay -->
+  <div id="loginOverlay" class="login-overlay">
+    <div class="login-card glass-panel">
+      <div class="logo" style="justify-content: center; margin-bottom: 2rem; flex-direction: column; text-align: center;">
+        <div class="logo-icon" style="font-size: 3.5rem; margin-bottom: 0.5rem;">🎉</div>
+        <div>
+          <h1 style="font-size: 2.2rem; margin-bottom: 0.25rem;">ParabénsFlow</h1>
+          <span style="font-size: 0.9rem; color: var(--text-secondary); display: block;">Gerenciador de E-mails de Aniversário</span>
+        </div>
+      </div>
+      
+      <form id="loginForm">
+        <div class="form-group">
+          <label for="loginEmail">E-mail de Acesso</label>
+          <input type="email" id="loginEmail" class="form-control" placeholder="admin@demo.com" required>
+        </div>
+        <div class="form-group">
+          <label for="loginPassword">Senha</label>
+          <input type="password" id="loginPassword" class="form-control" placeholder="Sua senha" required>
+        </div>
+        <button type="submit" class="btn btn-primary" id="btnSubmitLogin" style="width: 100%; margin-top: 1rem; padding: 0.95rem;">
+          Entrar no Painel
+        </button>
+      </form>
+      
+      <div style="text-align: center; margin-top: 2rem; font-size: 0.8rem; color: var(--text-muted);">
+        Direitos Reservados @sidneyAmorim
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Visualização/Edição Rápida (Se necessário) -->
+  <div id="editModal" class="modal-overlay">
+    <div class="modal-card glass-panel">
+      <h2 class="form-title"><span>✏️</span> Editar Contato</h2>
+      <form id="modalForm">
+        <input type="hidden" id="modalContactId">
+        <div class="form-group">
+          <label for="modalContactName">Nome Completo</label>
+          <input type="text" id="modalContactName" class="form-control" required>
+        </div>
+        <div class="form-group">
+          <label for="modalContactEmail">E-mail</label>
+          <input type="email" id="modalContactEmail" class="form-control" required>
+        </div>
+        <div class="form-group">
+          <label for="modalContactBirthdate">Data de Nascimento</label>
+          <input type="date" id="modalContactBirthdate" class="form-control" required>
+        </div>
+        <div class="row-actions">
+          <button type="button" id="btnModalCancel" class="btn btn-secondary">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Salvar Alterações</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal de Redefinição de Senha (admin) -->
+  <div id="resetPasswordModal" class="modal-overlay">
+    <div class="modal-card glass-panel">
+      <h2 class="form-title"><span>🔑</span> Redefinir Senha</h2>
+      <p style="color: var(--text-secondary); margin-bottom: 1.25rem;">
+        Nova senha para <strong id="resetPasswordEmailLabel" style="color: var(--text-primary);"></strong>
+      </p>
+      <form id="resetPasswordForm">
+        <input type="hidden" id="resetPasswordEmail">
+        <div class="form-group">
+          <label for="resetPasswordNew">Nova Senha</label>
+          <input type="password" id="resetPasswordNew" class="form-control" placeholder="Mínimo de 6 caracteres" autocomplete="new-password" required>
+        </div>
+        <div class="form-group">
+          <label for="resetPasswordConfirm">Confirmar Nova Senha</label>
+          <input type="password" id="resetPasswordConfirm" class="form-control" placeholder="Repita a nova senha" autocomplete="new-password" required>
+        </div>
+        <div class="row-actions">
+          <button type="button" class="btn btn-secondary" onclick="fecharRedefinirSenha()">Cancelar</button>
+          <button type="submit" class="btn btn-primary" id="btnSubmitResetPassword">Salvar Nova Senha</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal de Confirmação Genérico -->
+  <div id="confirmModal" class="modal-overlay" style="display:none; z-index: 9999;">
+    <div class="modal-card glass-panel" style="max-width: 400px; text-align: center;">
+      <div style="font-size: 2.2rem; margin-bottom: 0.5rem;">⚠️</div>
+      <h2 class="form-title" style="justify-content: center; margin-bottom: 0.5rem;">Confirmar ação</h2>
+      <p id="confirmModalMessage" style="color: var(--text-secondary); margin: 0.5rem 0 1.5rem;"></p>
+      <div class="row-actions" style="justify-content: center; gap: 1rem;">
+        <button type="button" id="btnConfirmCancel" class="btn btn-secondary">Cancelar</button>
+        <button type="button" id="btnConfirmOk" class="btn" style="background: #e53935; color: white;">Confirmar</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/html-to-image@1.11.13/dist/html-to-image.min.js"></script>
+  <script src="app.js?v=20260713-12"></script>
+</body>
+</html>

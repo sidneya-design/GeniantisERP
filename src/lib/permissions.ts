@@ -67,3 +67,4 @@ export function canAccessModule(role: UserRole | undefined, module: ModuleKey): 
   if (!role) return false;
   return ROLE_PERMISSIONS[role]?.[module]?.canView ?? false;
 }
+

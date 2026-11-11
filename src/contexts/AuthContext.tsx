@@ -33,6 +33,34 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState<boolean>(true);
   const [isMockSession, setIsMockSession] = useState<boolean>(!isSupabaseConfigured);
 
+  const syncParabensflowSSO = (email: string, role: UserRole) => {
+    const pfRole = role === 'admin' ? 'admin' : role === 'ti' || role === 'rh' ? 'editor' : 'viewer';
+    const pfToken = 'sso-geniantis-' + btoa(email);
+
+    sessionStorage.setItem('parabensflow_token', pfToken);
+    sessionStorage.setItem('parabensflow_email', email);
+    sessionStorage.setItem('parabensflow_role', pfRole);
+
+    localStorage.setItem('parabensflow_token', pfToken);
+    localStorage.setItem('parabensflow_email', email);
+    localStorage.setItem('parabensflow_role', pfRole);
+    localStorage.setItem('geniantis_token', pfToken);
+    localStorage.setItem('geniantis_email', email);
+    localStorage.setItem('geniantis_role', pfRole);
+  };
+
+  const clearParabensflowSSO = () => {
+    sessionStorage.removeItem('parabensflow_token');
+    sessionStorage.removeItem('parabensflow_email');
+    sessionStorage.removeItem('parabensflow_role');
+    localStorage.removeItem('parabensflow_token');
+    localStorage.removeItem('parabensflow_email');
+    localStorage.removeItem('parabensflow_role');
+    localStorage.removeItem('geniantis_token');
+    localStorage.removeItem('geniantis_email');
+    localStorage.removeItem('geniantis_role');
+  };
+
   const fetchProfile = async (userId: string, email: string) => {
     try {
       const { data, error } = await supabase
@@ -43,7 +71,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (error || !data) {
         console.warn('Perfil não encontrado no banco, usando dados padrão de consulta', error);
-        setProfile({
+        const fallbackProfile: UserProfile = {
           id: userId,
           email: email,
           full_name: email.split('@')[0],
@@ -51,9 +79,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           is_active: true,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
-        });
+        };
+        setProfile(fallbackProfile);
+        syncParabensflowSSO(email, 'consulta');
       } else {
-        setProfile(data as UserProfile);
+        const loadedProfile = data as UserProfile;
+        setProfile(loadedProfile);
+        syncParabensflowSSO(loadedProfile.email, loadedProfile.role);
       }
     } catch (err) {
       console.error('Erro ao buscar perfil:', err);
@@ -64,13 +96,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!isSupabaseConfigured) {
       // Modo Demonstração / Desenvolvimento Local inicial
       const savedRole = (localStorage.getItem('geniantis_dev_role') as UserRole) || 'admin';
-      setUser({ id: 'demo-user-id', email: `${savedRole}@geniantis.com` });
+      const email = `${savedRole}@geniantis.com`;
+      setUser({ id: 'demo-user-id', email });
       setProfile({
         ...DEFAULT_DEMO_PROFILE,
-        email: `${savedRole}@geniantis.com`,
+        email,
         full_name: `Usuário (${savedRole.toUpperCase()})`,
         role: savedRole,
       });
+      syncParabensflowSSO(email, savedRole);
       setIsMockSession(true);
       setLoading(false);
       return;
@@ -91,6 +125,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         fetchProfile(session.user.id, session.user.email || '');
       } else {
         setProfile(null);
+        clearParabensflowSSO();
       }
       setLoading(false);
     });
@@ -117,17 +152,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         full_name: email.split('@')[0],
         role: detectedRole,
       });
+      syncParabensflowSSO(email, detectedRole);
       return { error: null };
     }
 
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password: pass,
     });
+
+    if (!error && data?.user) {
+      // Perfil será carregado pelo listener onAuthStateChange ou fetchProfile
+      syncParabensflowSSO(email, 'admin');
+    }
+
     return { error: error as Error | null };
   };
 
   const signOut = async () => {
+    clearParabensflowSSO();
     if (!isSupabaseConfigured) {
       localStorage.removeItem('geniantis_dev_role');
       setUser(null);
@@ -141,7 +184,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const switchDevRole = (role: UserRole) => {
     localStorage.setItem('geniantis_dev_role', role);
-    setProfile(prev => prev ? { ...prev, role, email: `${role}@geniantis.com` } : null);
+    const email = `${role}@geniantis.com`;
+    setProfile(prev => prev ? { ...prev, role, email } : null);
+    syncParabensflowSSO(email, role);
   };
 
   const canAccess = (module: ModuleKey) => {
@@ -174,3 +219,4 @@ export const useAuth = () => {
   }
   return context;
 };
+

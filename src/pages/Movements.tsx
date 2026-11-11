@@ -132,3 +132,4 @@ export const Movements: React.FC = () => {
     </div>
   );
 };
+

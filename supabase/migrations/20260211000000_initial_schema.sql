@@ -166,3 +166,4 @@ CREATE POLICY "Qualquer autenticado insere auditoria"
     ON public.audit_logs FOR INSERT
     TO authenticated
     WITH CHECK (user_id = auth.uid());
+

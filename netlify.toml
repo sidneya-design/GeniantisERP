@@ -3,7 +3,23 @@
   command = "npm run build"
   functions = "netlify/functions"
 
-# Regra de roteamento SPA para rotas internas funcionarem no reload
+[functions."send-birthdays"]
+  # 07:00 no horário de Brasília (UTC-3) = 10:00 UTC
+  schedule = "0 10 * * *"
+
+# Funções Netlify Serverless do Aniversariantes
+[[redirects]]
+  from = "/.netlify/functions/*"
+  to = "/.netlify/functions/:splat"
+  status = 200
+
+# Arquivos estáticos do aplicativo de aniversariantes
+[[redirects]]
+  from = "/aniversariantes-app/*"
+  to = "/aniversariantes-app/:splat"
+  status = 200
+
+# Regra de roteamento SPA para rotas internas do GeniantisERP
 [[redirects]]
   from = "/*"
   to = "/index.html"
