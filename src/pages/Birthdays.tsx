@@ -95,7 +95,7 @@ export const Birthdays: React.FC = () => {
 
           <button
             onClick={handleOpenExternal}
-            className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-semibold shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer"
+            className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer"
           >
             <ExternalLink className="w-3.5 h-3.5" />
             <span>Abrir em Nova Aba</span>
@@ -104,13 +104,13 @@ export const Birthdays: React.FC = () => {
       </div>
 
       {/* Container do Aplicativo Original */}
-      <div className={`relative bg-slate-950 rounded-2xl border border-slate-800 overflow-hidden shadow-lg ${
-        isFullscreen ? 'h-[calc(100vh-5rem)]' : 'h-[750px]'
+      <div className={`relative bg-slate-50 rounded-2xl border border-slate-200 overflow-hidden shadow-xs ${
+        isFullscreen ? 'h-[calc(100vh-5rem)]' : 'h-[780px]'
       }`}>
         {isLoading && (
-          <div className="absolute inset-0 bg-slate-900/90 flex flex-col items-center justify-center space-y-3 z-10 text-white">
-            <div className="w-10 h-10 border-4 border-rose-500 border-t-transparent rounded-full animate-spin"></div>
-            <p className="text-sm font-medium text-slate-300">
+          <div className="absolute inset-0 bg-white/90 flex flex-col items-center justify-center space-y-3 z-10 text-slate-800">
+            <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+            <p className="text-sm font-medium text-slate-600">
               Carregando ParabénsFlow e autenticando via SSO...
             </p>
           </div>

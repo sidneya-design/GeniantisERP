@@ -25,3 +25,4 @@ export interface EmployeeWithRelations extends Employee {
   assets_count?: number;
   licenses_count?: number;
 }
+

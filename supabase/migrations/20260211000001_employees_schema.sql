@@ -66,3 +66,4 @@ CREATE POLICY "Exclusão restrita a administradores"
     ON public.employees FOR DELETE
     TO authenticated
     USING (public.is_admin());
+
