@@ -364,8 +364,8 @@ function adaptarInterfacePelasPermissoes() {
   const ehAdmin = role === 'admin';
   const podeEditarContatos = ehAdmin || role === 'editor';
 
-  // Cadastro, edição e remoção de contatos (Admin e Editor)
-  if (cadastroPanel) cadastroPanel.style.display = podeEditarContatos ? 'block' : 'none';
+  // O cadastro de contatos é gerenciado centralmente pelo módulo de Funcionários do ERP
+  if (cadastroPanel) cadastroPanel.style.display = 'none';
   if (contactsBulkBar) contactsBulkBar.style.display = podeEditarContatos ? 'flex' : 'none';
   actionsHeaders.forEach(el => el.style.display = podeEditarContatos ? 'table-cell' : 'none');
   bulkColumns.forEach(el => el.style.display = podeEditarContatos ? '' : 'none');
@@ -386,8 +386,8 @@ function adaptarInterfacePelasPermissoes() {
   }
   if (dispatchNotice) dispatchNotice.style.display = ehAdmin ? 'none' : 'block';
 
-  // Botão "Acesso & Perfil" do menu lateral (somente Admin)
-  if (profileNavBtn) profileNavBtn.style.display = ehAdmin ? 'flex' : 'none';
+  // Botão "Acesso & Perfil" do menu lateral (oculto pois o login é gerenciado pelo ERP)
+  if (profileNavBtn) profileNavBtn.style.display = 'none';
 
   // Se um não-admin por algum motivo estivesse na aba de perfil, redireciona para a aba de contatos
   const tabProfile = document.getElementById('tab-profile');

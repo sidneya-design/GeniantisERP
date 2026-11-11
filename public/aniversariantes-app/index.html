@@ -38,7 +38,7 @@
     <aside class="navigation-panel glass-panel">
       <div class="nav-buttons">
         <button class="nav-btn active" data-tab="tab-contacts">
-          <span class="nav-btn-icon">👥</span> Gerenciar Contatos
+          <span class="nav-btn-icon">🎂</span> Lista de Aniversariantes
         </button>
         <button class="nav-btn" data-tab="tab-template">
           <span class="nav-btn-icon">✉️</span> Template de E-mail
@@ -49,7 +49,7 @@
         <button class="nav-btn" data-tab="tab-banner">
           <span class="nav-btn-icon">🎨</span> Banner do Ano
         </button>
-        <button class="nav-btn" data-tab="tab-profile">
+        <button class="nav-btn" data-tab="tab-profile" style="display: none;">
           <span class="nav-btn-icon">🔒</span> Acesso & Perfil
         </button>
       </div>
@@ -77,7 +77,7 @@
       
       <!-- ABA 1: GERENCIAR CONTATOS -->
       <div id="tab-contacts" class="tab-content active">
-        <div id="cadastroContatosPanel" class="glass-panel" style="margin-bottom: 2rem;">
+        <div id="cadastroContatosPanel" class="glass-panel" style="margin-bottom: 2rem; display: none !important;">
           <!-- Sub-abas de Cadastro -->
           <div class="sub-tabs">
             <button type="button" class="sub-tab-btn active" data-subtab="single-register">Cadastro Individual</button>
@@ -130,10 +130,14 @@
         </div>
 
         <div class="glass-panel">
-          <div class="controls-row">
-            <input type="text" id="searchInput" class="form-control search-input" placeholder="🔍 Buscar contato por nome ou e-mail...">
+          <div style="background: #eff6ff; border: 1px solid #bfdbfe; color: #1e40af; padding: 0.75rem 1rem; border-radius: 10px; font-size: 0.85rem; margin-bottom: 1.25rem; display: flex; align-items: center; gap: 0.5rem;">
+            <span>ℹ️</span>
+            <span>Os aniversariantes são sincronizados automaticamente a partir do módulo <strong>Funcionários</strong> do ERP.</span>
           </div>
-          <h2 class="form-title" style="margin-bottom: 1rem;"><span>📋</span> Lista de Contatos</h2>
+          <div class="controls-row">
+            <input type="text" id="searchInput" class="form-control search-input" placeholder="🔍 Buscar aniversariante por nome ou e-mail...">
+          </div>
+          <h2 class="form-title" style="margin-bottom: 1rem;"><span>🎂</span> Lista de Aniversariantes</h2>
 
           <div id="contactsBulkBar" class="contacts-bulk-bar">
             <label class="contacts-bulk-select-all">
