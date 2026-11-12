@@ -51,7 +51,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, Record<ModuleKey, ModulePermissi
     overview: { canView: true, canEdit: false, canDelete: false },
     employees: { canView: true, canEdit: true, canDelete: false },
     assets: { canView: false, canEdit: false, canDelete: false },
-    movements: { canView: false, canEdit: false, canDelete: false },
+    movements: { canView: true, canEdit: false, canDelete: false },
     maintenance: { canView: false, canEdit: false, canDelete: false },
     subscriptions: { canView: false, canEdit: false, canDelete: false },
     domains: { canView: false, canEdit: false, canDelete: false },

@@ -7,6 +7,7 @@ import { Asset } from '../types/asset';
 import { Employee } from '../types/employee';
 import { Movement, MovementTermStatus, MovementType } from '../types/movement';
 import { useAuth } from '../contexts/AuthContext';
+import { usePermission } from '../lib/usePermission';
 import { loadTermTemplates, renderTermHtml } from '../lib/termTemplate';
 
 const getAssetDescription = (asset: Asset) => [asset.brand, asset.model].filter(Boolean).join(' ') || asset.category;
@@ -16,6 +17,8 @@ export const Movements: React.FC = () => {
   const [assets, setAssets] = useState<Asset[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const { profile } = useAuth();
+  // RH: só consulta e imprime termos
+  const { canEdit } = usePermission('movements');
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -213,8 +216,10 @@ export const Movements: React.FC = () => {
           <p className="text-slate-500 text-sm mt-1">Custódia de equipamentos, movimentações em lote, geração de termos e histórico.</p>
         </div>
         <div className="mt-4 md:mt-0 flex gap-2">
+          {canEdit && (<>
           <button type="button" onClick={() => openMovementModal('devolucao')} className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm font-semibold transition-colors"><RotateCcw className="w-4 h-4" /> Registrar Devolução</button>
           <button type="button" onClick={() => openMovementModal('entrega')} className="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-semibold shadow-xs transition-colors"><Plus className="w-4 h-4" /> Nova Entrega em Lote</button>
+          </>)}
         </div>
       </div>
 

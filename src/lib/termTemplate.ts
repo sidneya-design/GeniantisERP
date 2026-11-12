@@ -51,7 +51,7 @@ export const DEFAULT_TEMPLATES: Record<TermTemplateId, TermTemplate> = {
     id: 'termo_entrega',
     title: 'TERMO DE RECEBIMENTO – ENTREGA DE EQUIPAMENTO',
     body: [
-      `Eu, ${BLANK_NAME} CPF: ${BLANK_CPF}, funcionário(a) da organização **FUNDAÇÃO GENIANTIS**, inscrita no CNPJ sob o número 03.177.308/0001-03, declaro para os devidos fins estar retirando neste ato o(s) equipamento(s) relacionado(s) abaixo, com carregador e bateria, para utilização estritamente profissional, sobre o(s) qual(is) assumo integral responsabilidade, devendo indenizar prejuízos decorrentes de eventual sinistro, ou reparos necessários, oriundos de má utilização, comprometendo-me a devolver prontamente o(s) equipamento(s) à empresa, quando solicitado, nas mesmas condições de uso em que fora(m) retirado(s).`,
+      'Eu, **{{funcionario}}**, CPF: {{cpf}}, funcionário(a) da organização **FUNDAÇÃO GENIANTIS**, inscrita no CNPJ sob o número 03.177.308/0001-03, declaro para os devidos fins estar retirando neste ato o(s) equipamento(s) relacionado(s) abaixo, com carregador e bateria, para utilização estritamente profissional, sobre o(s) qual(is) assumo integral responsabilidade, devendo indenizar prejuízos decorrentes de eventual sinistro, ou reparos necessários, oriundos de má utilização, comprometendo-me a devolver prontamente o(s) equipamento(s) à empresa, quando solicitado, nas mesmas condições de uso em que fora(m) retirado(s).',
       '{{ativos}}',
       'Declaro, ainda, ter ciência de que o equipamento poderá eventualmente ser substituído ao longo do tempo, por um equivalente ou superior, sem que isso venha a isentar qualquer responsabilidade aqui assumida.',
       'Sendo a presente declaração a expressão da verdade, firmo-a na presença da testemunha abaixo, para todos os efeitos legais.',
@@ -65,7 +65,7 @@ export const DEFAULT_TEMPLATES: Record<TermTemplateId, TermTemplate> = {
     id: 'termo_devolucao',
     title: 'TERMO DE DEVOLUÇÃO DE EQUIPAMENTO',
     body: [
-      `Eu, ${BLANK_NAME} CPF: ${BLANK_CPF}, funcionário(a) da organização **FUNDAÇÃO GENIANTIS**, inscrita no CNPJ sob o número 03.177.308/0001-03, declaro para os devidos fins estar devolvendo neste ato o(s) equipamento(s) relacionado(s) abaixo, que estava(m) sob minha responsabilidade.`,
+      'Eu, **{{funcionario}}**, CPF: {{cpf}}, funcionário(a) da organização **FUNDAÇÃO GENIANTIS**, inscrita no CNPJ sob o número 03.177.308/0001-03, declaro para os devidos fins estar devolvendo neste ato o(s) equipamento(s) relacionado(s) abaixo, que estava(m) sob minha responsabilidade.',
       '{{ativos}}',
       'A **FUNDAÇÃO GENIANTIS** declara ter recebido o(s) equipamento(s) acima, conferido(s) no ato da devolução, ressalvadas as observações registradas neste termo.',
       '{{observacoes}}',
@@ -195,9 +195,17 @@ export function renderTermHtml(template: TermTemplate, data: TermData, origin = 
     empresa: ORGANIZATION_NAME,
   };
 
+  // Dado do funcionário que não veio (ex.: CPF para quem não vê dados pessoais):
+  // sai como espaço em branco para preencher à mão
+  const blanks: Record<string, string> = {
+    funcionario: BLANK_NAME, cpf: BLANK_CPF, matricula: '______________', cargo: '____________________',
+    departamento: '____________________', unidade: '____________________', email: '____________________',
+  };
+  const valueOf = (key: string) => values[key] || blanks[key] || '';
+
   // Texto já escapado; variáveis entram escapadas; **negrito**
   const fill = (text: string) => escapeHtml(text)
-    .replace(/\{\{\s*([a-z_]+)\s*\}\}/g, (match, key) => (key in values ? escapeHtml(values[key]) : match))
+    .replace(/\{\{\s*([a-z_]+)\s*\}\}/g, (match, key) => (key in values ? escapeHtml(valueOf(key)) : match))
     .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
 
   let paragraphs = 0;
@@ -226,8 +234,14 @@ export function renderTermHtml(template: TermTemplate, data: TermData, origin = 
     .map((s) => `<div class="sig"><div class="line"></div>${fill(s)}</div>`)
     .join('');
   const footer = (template.footer || '').trim();
+  // Vira o nome sugerido do arquivo ao salvar como PDF: "Termo de entrega - Nome - 12-11-2026"
+  const documentTitle = [
+    data.type === 'entrega' ? 'Termo de entrega' : 'Termo de devolução',
+    data.employee.full_name,
+    formatDate(data.date).replace(/\//g, '-'),
+  ].filter(Boolean).join(' - ');
 
-  return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>${escapeHtml(template.title)}</title><style>
+  return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>${escapeHtml(documentTitle)}</title><style>
     @page { size: A4; margin: 2cm 2.5cm; }
     body { font-family: Arial, Helvetica, sans-serif; color: #111827; max-width: 720px; margin: 32px auto; line-height: 1.55; font-size: 14px; }
     .page { min-height: 100%; display: flex; flex-direction: column; }
