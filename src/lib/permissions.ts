@@ -19,7 +19,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, Record<ModuleKey, ModulePermissi
   // ADM: Vê tudo menos Configurações; Ativos, Manutenções e Domínios só leitura
   adm: {
     overview: { canView: true, canEdit: true, canDelete: false },
-    employees: { canView: true, canEdit: true, canDelete: false },
+    employees: { canView: true, canEdit: false, canDelete: false },
     assets: { canView: true, canEdit: false, canDelete: false },
     movements: { canView: true, canEdit: true, canDelete: false },
     maintenance: { canView: true, canEdit: false, canDelete: false },

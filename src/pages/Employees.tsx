@@ -16,6 +16,7 @@ import {
   Briefcase
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { usePermission } from '../lib/usePermission';
 import { EmployeeService } from '../services/employeeService';
 import { Employee, EmployeeStatus } from '../types/employee';
 
@@ -47,6 +48,8 @@ export const Employees: React.FC = () => {
   const { profile } = useAuth();
   // CPF, endereço e contato de emergência: só Admin, ADM e RH
   const canSeePrivate = ['admin', 'adm', 'rh'].includes(profile?.role || '');
+  // Cadastrar e editar: Admin, RH e TI (ADM só consulta)
+  const { canEdit } = usePermission('employees');
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterDept, setFilterDept] = useState('todos');
@@ -271,12 +274,14 @@ export const Employees: React.FC = () => {
           >
             <Download className="w-4 h-4" /> Exportar CSV
           </button>
+          {canEdit && (
           <button 
             onClick={handleNew}
             className="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-semibold shadow-xs transition-colors cursor-pointer"
           >
             <Plus className="w-4 h-4" /> Novo Funcionário
           </button>
+          )}
         </div>
       </div>
 
@@ -770,12 +775,14 @@ export const Employees: React.FC = () => {
             </div>
 
             <div className="flex justify-end pt-2">
+              {canEdit && (
               <button
                 onClick={() => handleEdit(selectedEmployee)}
                 className="mr-auto px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-semibold transition-colors"
               >
                 Editar Cadastro
               </button>
+              )}
               <button
                 onClick={() => setIsDetailsOpen(false)}
                 className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm font-semibold transition-colors"

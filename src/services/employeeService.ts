@@ -228,7 +228,13 @@ export const EmployeeService = {
         ? supabase.from('employees').update(publicPart).eq('id', employee.id)
         : supabase.from('employees').insert(publicPart);
       const { data, error } = await query.select(PUBLIC_COLUMNS).single();
-      if (error) throw error;
+      if (error) {
+        // RLS bloqueando: o update não devolve linha (PGRST116) ou o insert é negado (42501)
+        if (error.code === 'PGRST116' || error.code === '42501') {
+          throw new Error('Seu perfil não tem permissão para salvar funcionários.');
+        }
+        throw error;
+      }
 
       // Dados pessoais na tabela própria (só Admin, ADM e RH conseguem gravar).
       // Perfis sem acesso (TI) não enviam nada, para não apagar o que existe.
