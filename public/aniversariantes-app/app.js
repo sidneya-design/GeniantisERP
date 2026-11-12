@@ -1482,6 +1482,7 @@ async function executarVerificacaoManual() {
   try {
     const res = await fetchAutenticado('/trigger-manual');
     const resData = await res.json();
+    if (!res.ok) throw new Error(resData.error || `Erro no servidor (HTTP ${res.status})`);
 
     const detalhes = resData.detalhes || [];
     logConsole(`[Servidor] Aniversariantes encontrados: ${resData.totalAniversariantes ?? detalhes.length}`, 'info');

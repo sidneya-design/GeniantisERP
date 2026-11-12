@@ -4,7 +4,7 @@
 // ---------------------------------------------------------------
 
 const nodemailer = require('nodemailer');
-const { getContacts, saveContacts, getConfig } = require('./auth');
+const { getConfig, obterStore } = require('./auth');
 
 // Transporte SMTP do Gmail – autentica com a conta e a senha de app
 // (GMAIL_USER e GMAIL_APP_PASSWORD nas variáveis de ambiente).
@@ -122,20 +122,63 @@ function fazAniversarioHoje(dataNascimento, hoje) {
 }
 
 /**
+ * Lê os funcionários do cadastro central do ERP (Supabase) — a mesma lista que
+ * o painel exibe. Roda sem usuário logado (cron), por isso usa a chave de
+ * servidor SUPABASE_SERVICE_ROLE_KEY, que nunca vai para o navegador.
+ */
+async function obterFuncionariosERP() {
+  const url = (process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '').replace(/\/+$/, '');
+  const chave = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !chave) {
+    throw new Error('Configure SUPABASE_SERVICE_ROLE_KEY (Secret key do Supabase) nas variáveis de ambiente da Netlify.');
+  }
+
+  const headers = { apikey: chave };
+  // Chaves legadas (JWT) também precisam ir no Authorization
+  if (chave.startsWith('eyJ')) headers.Authorization = `Bearer ${chave}`;
+
+  const res = await fetch(
+    `${url}/rest/v1/employees?select=id,full_name,preferential_name,email,birth_date,status&status=neq.desligado&birth_date=not.is.null`,
+    { headers }
+  );
+  if (!res.ok) {
+    throw new Error(`Falha ao ler funcionários no Supabase (HTTP ${res.status}): ${await res.text()}`);
+  }
+
+  const funcionarios = await res.json();
+  return funcionarios
+    .filter(f => f.email)
+    .map(f => ({
+      id: String(f.id),
+      nome: f.preferential_name || f.full_name,
+      email: f.email,
+      data_nascimento: String(f.birth_date).slice(0, 10),
+    }));
+}
+
+// Registro de quem já recebeu o e-mail no ano: { [idFuncionario]: ano }
+async function obterRegistroEnvios(store) {
+  const raw = await store.get('envios_aniversario');
+  return raw ? JSON.parse(raw) : {};
+}
+
+/**
  * Processa o disparo de e‑mails para todos os aniversariantes do dia.
- * É chamado pela função Netlify `trigger‑manual.js`.
+ * Chamado pelo cron `send-birthdays.js` e pelo disparo manual `trigger-manual.js`.
  *
  * @returns {Promise<object>} resumo do disparo
  */
 async function processarEnvioAniversarios() {
-  // 1️⃣ Carrega contatos e configuração do template
-  const contatos = await getContacts();
+  // 1️⃣ Carrega funcionários, configuração do template e registro de envios
+  const funcionarios = await obterFuncionariosERP();
   const { email_assunto, email_template, email_imagem, email_cc, email_cco } = await getConfig();
+  const store = obterStore('parabensflow-dados');
+  const registro = await obterRegistroEnvios(store);
 
   // 2️⃣ Seleciona quem faz aniversário hoje e ainda não recebeu e‑mail este ano
   const hoje = obterDataAtualBrasilia();
-  const aniversariantes = contatos.filter(c =>
-    fazAniversarioHoje(c.data_nascimento, hoje) && c.ultimo_envio_ano !== hoje.ano
+  const aniversariantes = funcionarios.filter(f =>
+    fazAniversarioHoje(f.data_nascimento, hoje) && registro[f.id] !== hoje.ano
   );
 
   // 3️⃣ Envia e‑mails
@@ -156,22 +199,23 @@ async function processarEnvioAniversarios() {
       detalhe: envio.success ? envio.data : envio.error,
     });
 
-    // Marca o contato como já contemplado neste ano, evitando reenvio
+    // Marca como já contemplado neste ano, evitando reenvio
     // em caso de retry do cron ou disparo manual no mesmo dia.
-    if (envio.success) {
-      contato.ultimo_envio_ano = hoje.ano;
-    }
+    if (envio.success) registro[contato.id] = hoje.ano;
   }
 
   if (resultados.some(r => r.enviado)) {
-    await saveContacts(contatos);
+    await store.set('envios_aniversario', JSON.stringify(registro));
   }
 
   // 4️⃣ Retorna resumo
+  const enviados = resultados.filter(r => r.enviado).length;
+  const falhas = resultados.filter(r => !r.enviado).length;
   return {
+    message: `${aniversariantes.length} aniversariante(s) hoje: ${enviados} enviado(s), ${falhas} falha(s).`,
     totalAniversariantes: aniversariantes.length,
-    enviados: resultados.filter(r => r.enviado).length,
-    falhas: resultados.filter(r => !r.enviado).length,
+    enviados,
+    falhas,
     detalhes: resultados,
   };
 }
