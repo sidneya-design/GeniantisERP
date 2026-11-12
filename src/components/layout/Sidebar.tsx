@@ -48,7 +48,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
     { name: 'Domínios & Renovações', path: '/dominios', icon: Globe, moduleKey: 'domains' },
     { name: 'Aniversariantes', path: '/aniversariantes', icon: Cake, moduleKey: 'birthdays', badge: 'Módulo' },
     // Relatórios oculto temporariamente por solicitação do usuário
-    // { name: 'Relatórios', path: '/relatorios', icon: FileBarChart2, moduleKey: 'reports' },
+    { name: 'Relatórios', path: '/relatorios', icon: FileBarChart2, moduleKey: 'reports' },
     { name: 'Usuários', path: '/usuarios', icon: UserCog, moduleKey: 'settings' },
     { name: 'Logs de Atividade', path: '/logs', icon: ScrollText, moduleKey: 'logs' },
     { name: 'Configurações', path: '/configuracoes', icon: Settings, moduleKey: 'settings' },
