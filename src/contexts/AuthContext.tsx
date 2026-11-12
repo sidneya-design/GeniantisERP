@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { UserProfile, UserRole, ModuleKey } from '../types';
 import { canAccessModule } from '../lib/permissions';
+import { clearParabensflowSession, fetchParabensflowSession, storeParabensflowSession } from '../lib/parabensflowSso';
 
 interface AuthContextType {
   user: any | null;
@@ -33,32 +34,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isMockSession, setIsMockSession] = useState<boolean>(!isSupabaseConfigured);
 
   const syncParabensflowSSO = (email: string, role: UserRole) => {
-    const pfRole = role === 'admin' ? 'admin' : role === 'adm' || role === 'rh' ? 'editor' : 'viewer';
-    const pfToken = 'sso-geniantis-' + btoa(email);
-
-    sessionStorage.setItem('parabensflow_token', pfToken);
-    sessionStorage.setItem('parabensflow_email', email);
-    sessionStorage.setItem('parabensflow_role', pfRole);
-
-    localStorage.setItem('parabensflow_token', pfToken);
-    localStorage.setItem('parabensflow_email', email);
-    localStorage.setItem('parabensflow_role', pfRole);
-    localStorage.setItem('geniantis_token', pfToken);
-    localStorage.setItem('geniantis_email', email);
-    localStorage.setItem('geniantis_role', pfRole);
+    if (!isSupabaseConfigured) {
+      // Modo demo: sem Supabase não há como validar no servidor; o painel usa a prévia local.
+      const pfRole = role === 'admin' ? 'admin' : role === 'adm' || role === 'rh' ? 'editor' : 'viewer';
+      storeParabensflowSession({ token: 'sso-demo-' + btoa(email), email, role: pfRole });
+      return;
+    }
+    void fetchParabensflowSession();
   };
 
-  const clearParabensflowSSO = () => {
-    sessionStorage.removeItem('parabensflow_token');
-    sessionStorage.removeItem('parabensflow_email');
-    sessionStorage.removeItem('parabensflow_role');
-    localStorage.removeItem('parabensflow_token');
-    localStorage.removeItem('parabensflow_email');
-    localStorage.removeItem('parabensflow_role');
-    localStorage.removeItem('geniantis_token');
-    localStorage.removeItem('geniantis_email');
-    localStorage.removeItem('geniantis_role');
-  };
+  const clearParabensflowSSO = () => clearParabensflowSession();
 
   const fetchProfile = async (userId: string, email: string) => {
     try {

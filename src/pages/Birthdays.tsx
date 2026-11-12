@@ -8,6 +8,8 @@ import {
   CheckCircle2
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { fetchParabensflowSession } from '../lib/parabensflowSso';
+import { isSupabaseConfigured } from '../lib/supabase';
 import { EmployeeService } from '../services/employeeService';
 import { Employee } from '../types/employee';
 
@@ -21,22 +23,38 @@ export const Birthdays: React.FC = () => {
   const currentUserEmail = profile?.email || user?.email || 'admin@geniantis.com';
   const currentUserRole = profile?.role === 'admin' ? 'admin' : (profile?.role === 'adm' || profile?.role === 'rh') ? 'editor' : 'viewer';
 
-  // Sincroniza a sessão com o iframe via postMessage ao carregar ou alternar usuário
-  const syncIframeSession = (employeeList = employees) => {
-    if (iframeRef.current && iframeRef.current.contentWindow) {
-      const ssoData = {
-        type: 'GENIANTIS_SSO_SYNC',
-        token: 'sso-geniantis-' + btoa(currentUserEmail),
-        email: currentUserEmail,
-        role: currentUserRole,
-      };
-      iframeRef.current.contentWindow.postMessage(ssoData, '*');
-      iframeRef.current.contentWindow.postMessage({
-        type: 'GENIANTIS_EMPLOYEES_SYNC',
-        employees: employeeList,
-      }, '*');
-    }
+  // Sincroniza a sessão com o iframe via postMessage ao carregar ou alternar usuário.
+  // O token é emitido pela function `sso`, que valida a sessão Supabase do ERP.
+  const syncIframeSession = async (employeeList = employees, forceRefresh = false) => {
+    const target = iframeRef.current?.contentWindow;
+    if (!target) return;
+
+    const session = await fetchParabensflowSession(forceRefresh);
+    const ssoData = session
+      ? { type: 'GENIANTIS_SSO_SYNC', ...session }
+      : isSupabaseConfigured
+        ? null
+        : {
+            type: 'GENIANTIS_SSO_SYNC',
+            token: 'sso-demo-' + btoa(currentUserEmail),
+            email: currentUserEmail,
+            role: currentUserRole,
+          };
+
+    const origin = window.location.origin;
+    if (ssoData) target.postMessage(ssoData, origin);
+    target.postMessage({ type: 'GENIANTIS_EMPLOYEES_SYNC', employees: employeeList }, origin);
   };
+
+  // O painel pede um token novo quando o atual expira
+  useEffect(() => {
+    const onMessage = (event: MessageEvent) => {
+      if (event.origin !== window.location.origin) return;
+      if (event.data?.type === 'GENIANTIS_SSO_REQUEST') void syncIframeSession(employees, true);
+    };
+    window.addEventListener('message', onMessage);
+    return () => window.removeEventListener('message', onMessage);
+  });
 
   useEffect(() => {
     let active = true;

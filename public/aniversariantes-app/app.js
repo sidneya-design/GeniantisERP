@@ -321,9 +321,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Escuta mensagens de SSO do GeniantisERP
   window.addEventListener('message', (event) => {
+    if (event.origin !== window.location.origin) return;
+
     if (event.data && event.data.type === 'GENIANTIS_SSO_SYNC') {
       const { token, email, role } = event.data;
       if (token && email && role) {
+        sessaoInvalidaTratada = false;
         sessionStorage.setItem('parabensflow_token', token);
         sessionStorage.setItem('parabensflow_email', email);
         sessionStorage.setItem('parabensflow_role', role);
@@ -493,7 +496,8 @@ async function fazerLogin(event) {
   }
 }
 
-function logout() {
+function logout(silencioso = false) {
+  silencioso = silencioso === true;
   sessionStorage.removeItem('parabensflow_token');
   sessionStorage.removeItem('parabensflow_email');
   sessionStorage.removeItem('parabensflow_role');
@@ -506,8 +510,33 @@ function logout() {
   document.getElementById('statToday').textContent = '0';
   document.getElementById('statMonthList').innerHTML = '';
 
-  showToast('Você saiu do sistema.', 'info');
+  if (!silencioso) showToast('Você saiu do sistema.', 'info');
   checkSession();
+}
+
+// Sessão recusada pelo servidor: limpa TODAS as cópias do token (inclusive as
+// gravadas pelo ERP no localStorage, que reativariam a sessão em loop), avisa
+// uma única vez e, dentro do ERP, pede um token novo à página pai.
+let ultimoPedidoSSO = 0;
+let sessaoInvalidaTratada = false;
+function tratarSessaoInvalida() {
+  const tinhaSessao = Boolean(sessionStorage.getItem('parabensflow_token'));
+  ['parabensflow', 'geniantis'].forEach(prefixo => {
+    ['token', 'email', 'role'].forEach(campo => localStorage.removeItem(`${prefixo}_${campo}`));
+  });
+  if (tinhaSessao) {
+    logout(true);
+    if (!sessaoInvalidaTratada) {
+      showToast('Sessão expirada ou acesso negado. Faça login novamente.', 'error');
+      sessaoInvalidaTratada = true;
+    }
+  }
+
+  const dentroDoERP = window.parent && window.parent !== window;
+  if (dentroDoERP && Date.now() - ultimoPedidoSSO > 30000) {
+    ultimoPedidoSSO = Date.now();
+    window.parent.postMessage({ type: 'GENIANTIS_SSO_REQUEST' }, window.location.origin);
+  }
 }
 
 // 2. Helper de Requisições Autenticadas
@@ -623,8 +652,7 @@ async function fetchAutenticado(endpoint, options = {}) {
   });
 
   if (res.status === 401) {
-    logout();
-    showToast('Sessão expirada ou acesso negado. Faça login novamente.', 'error');
+    tratarSessaoInvalida();
     throw new Error('Não autorizado');
   }
 
@@ -1934,7 +1962,7 @@ function imprimirBanner() {
 function setupForms() {
   document.getElementById('loginForm').addEventListener('submit', fazerLogin);
   document.getElementById('resetPasswordForm').addEventListener('submit', salvarRedefinirSenha);
-  document.getElementById('btnHeaderLogout').addEventListener('click', logout);
+  document.getElementById('btnHeaderLogout').addEventListener('click', () => logout());
   document.getElementById('profileForm').addEventListener('submit', alterarPerfil);
   document.getElementById('newAdminForm').addEventListener('submit', adicionarNovoAdmin);
   document.getElementById('contactForm').addEventListener('submit', salvarContato);
