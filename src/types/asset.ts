@@ -16,6 +16,11 @@ export interface Asset {
   warranty_until?: string | null;
   acquisition_date?: string | null;
   purchase_cost?: number | null;
+  // Só para computadores (Notebook, Desktop e Servidor)
+  operating_system?: string | null;
+  memory?: string | null;
+  processor?: string | null;
+  hostname?: string | null;
   notes?: string | null;
   created_at: string;
   updated_at: string;

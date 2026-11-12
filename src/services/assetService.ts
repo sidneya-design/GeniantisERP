@@ -22,6 +22,10 @@ function mapRow(row: any): Asset {
     warranty_until: row.warranty_until || null,
     acquisition_date: row.acquisition_date || null,
     purchase_cost: row.purchase_cost || null,
+    operating_system: row.operating_system || null,
+    memory: row.memory || null,
+    processor: row.processor || null,
+    hostname: row.hostname || null,
     notes: row.notes || null,
     created_at: row.created_at,
     updated_at: row.updated_at,
@@ -61,6 +65,10 @@ export const AssetService = {
       warranty_until: asset.warranty_until || null,
       acquisition_date: asset.acquisition_date || null,
       purchase_cost: asset.purchase_cost ?? null,
+      operating_system: asset.operating_system || null,
+      memory: asset.memory || null,
+      processor: asset.processor || null,
+      hostname: asset.hostname || null,
       notes: asset.notes || null,
     };
 

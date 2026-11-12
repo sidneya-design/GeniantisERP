@@ -1,3 +1,4 @@
+import { ASSET_CATEGORY_LABEL, categoryLabel, isComputer, OS_SUGGESTIONS } from '../lib/assetLabels';
 import { usePermission } from '../lib/usePermission';
 import React, { useEffect, useMemo, useState } from 'react';
 import { Laptop, Plus, Search, QrCode, Eye, X, CheckCircle2, ShieldAlert, Upload } from 'lucide-react';
@@ -22,6 +23,10 @@ const EMPTY_ASSET_FORM = {
   acquisition_date: '',
   purchase_cost: '',
   notes: '',
+  operating_system: '',
+  memory: '',
+  processor: '',
+  hostname: '',
 };
 
 export const Assets: React.FC = () => {
@@ -76,6 +81,11 @@ export const Assets: React.FC = () => {
         purchase_cost: formData.purchase_cost ? Number(formData.purchase_cost) : null,
         notes: formData.notes || null,
         assigned_employee_id: formData.assigned_employee_id || null,
+        // Dados de computador só para Notebook, Desktop e Servidor
+        operating_system: isComputer(formData.category) ? formData.operating_system.trim() || null : null,
+        memory: isComputer(formData.category) ? formData.memory.trim() || null : null,
+        processor: isComputer(formData.category) ? formData.processor.trim() || null : null,
+        hostname: isComputer(formData.category) ? formData.hostname.trim().toUpperCase() || null : null,
       });
       await loadAssets();
       setSuccessMessage(editingAsset ? 'Ativo atualizado com sucesso.' : 'Ativo cadastrado com sucesso.');
@@ -116,6 +126,10 @@ export const Assets: React.FC = () => {
       acquisition_date: asset.acquisition_date || '',
       purchase_cost: asset.purchase_cost === null || asset.purchase_cost === undefined ? '' : String(asset.purchase_cost),
       notes: asset.notes || '',
+      operating_system: asset.operating_system || '',
+      memory: asset.memory || '',
+      processor: asset.processor || '',
+      hostname: asset.hostname || '',
     });
     setIsModalOpen(true);
   };
@@ -145,7 +159,7 @@ export const Assets: React.FC = () => {
         <article class="label">
           <div class="brand">GENIANTIS</div>
           <div class="code">${escapeHtml(asset.patrimony)}</div>
-          <div>${escapeHtml([asset.brand, asset.model].filter(Boolean).join(' ') || asset.category)}</div>
+          <div>${escapeHtml([asset.brand, asset.model].filter(Boolean).join(' ') || categoryLabel(asset.category))}</div>
           <div class="serial">${asset.serial_number ? `S/N: ${escapeHtml(asset.serial_number)}` : 'S/N não informado'}</div>
         </article>
       `)
@@ -169,7 +183,7 @@ export const Assets: React.FC = () => {
 
   const filteredAssets = useMemo(() => assets.filter((asset) => {
     const term = searchTerm.toLowerCase();
-    const matchesSearch = [asset.patrimony, asset.serial_number, asset.brand, asset.model, asset.assigned_to]
+    const matchesSearch = [asset.patrimony, asset.serial_number, asset.brand, asset.model, asset.assigned_to, asset.hostname]
       .filter(Boolean)
       .some((value) => String(value).toLowerCase().includes(term));
     const matchesCategory = filterCategory === 'todas' || asset.category === filterCategory;
@@ -253,12 +267,7 @@ export const Assets: React.FC = () => {
             className="text-sm border border-slate-300 rounded-lg px-3 py-2 bg-white text-slate-700 focus:outline-hidden focus:ring-2 focus:ring-blue-600"
           >
             <option value="todas">Todas as Categorias</option>
-            <option value="notebook">Notebook</option>
-            <option value="desktop">Desktop</option>
-            <option value="monitor">Monitor</option>
-            <option value="celular">Celular / Tablet</option>
-            <option value="rede">Equipamentos de Rede</option>
-            <option value="perifericos">Periféricos</option>
+            {Object.entries(ASSET_CATEGORY_LABEL).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
           </select>
 
           <select
@@ -359,7 +368,7 @@ export const Assets: React.FC = () => {
             <form onSubmit={handleCreate} className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
               <label className="block"><span className="block text-xs font-semibold text-slate-700 mb-1">Patrimônio *</span><input required value={formData.patrimony} onChange={(e) => setFormData({ ...formData, patrimony: e.target.value })} className="w-full px-3 py-2 border border-slate-300 rounded-lg" /></label>
               <label className="block"><span className="block text-xs font-semibold text-slate-700 mb-1">Número de série</span><input value={formData.serial_number} onChange={(e) => setFormData({ ...formData, serial_number: e.target.value })} className="w-full px-3 py-2 border border-slate-300 rounded-lg" /></label>
-              <label className="block"><span className="block text-xs font-semibold text-slate-700 mb-1">Categoria *</span><select value={formData.category} onChange={(e) => setFormData({ ...formData, category: e.target.value })} className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white"><option value="notebook">Notebook</option><option value="desktop">Desktop</option><option value="monitor">Monitor</option><option value="celular">Celular / Tablet</option><option value="rede">Equipamento de rede</option><option value="perifericos">Periférico</option></select></label>
+              <label className="block"><span className="block text-xs font-semibold text-slate-700 mb-1">Categoria *</span><select value={formData.category} onChange={(e) => setFormData({ ...formData, category: e.target.value })} className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white">{Object.entries(ASSET_CATEGORY_LABEL).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
               <label className="block"><span className="block text-xs font-semibold text-slate-700 mb-1">Unidade *</span><input required value={formData.unit} onChange={(e) => setFormData({ ...formData, unit: e.target.value })} className="w-full px-3 py-2 border border-slate-300 rounded-lg" /></label>
               <label className="block"><span className="block text-xs font-semibold text-slate-700 mb-1">Marca</span><input value={formData.brand} onChange={(e) => setFormData({ ...formData, brand: e.target.value })} className="w-full px-3 py-2 border border-slate-300 rounded-lg" /></label>
               <label className="block"><span className="block text-xs font-semibold text-slate-700 mb-1">Modelo</span><input value={formData.model} onChange={(e) => setFormData({ ...formData, model: e.target.value })} className="w-full px-3 py-2 border border-slate-300 rounded-lg" /></label>
@@ -369,6 +378,13 @@ export const Assets: React.FC = () => {
               <label className="block"><span className="block text-xs font-semibold text-slate-700 mb-1">Garantia até</span><input type="date" value={formData.warranty_until} onChange={(e) => setFormData({ ...formData, warranty_until: e.target.value })} className="w-full px-3 py-2 border border-slate-300 rounded-lg" /></label>
               <label className="block"><span className="block text-xs font-semibold text-slate-700 mb-1">Data de aquisição</span><input type="date" value={formData.acquisition_date} onChange={(e) => setFormData({ ...formData, acquisition_date: e.target.value })} className="w-full px-3 py-2 border border-slate-300 rounded-lg" /></label>
               <label className="block"><span className="block text-xs font-semibold text-slate-700 mb-1">Custo de aquisição</span><input type="number" min="0" step="0.01" value={formData.purchase_cost} onChange={(e) => setFormData({ ...formData, purchase_cost: e.target.value })} className="w-full px-3 py-2 border border-slate-300 rounded-lg" /></label>
+              {isComputer(formData.category) && (<>
+              <div className="sm:col-span-2 pt-2 border-t border-slate-100"><span className="text-xs font-bold text-slate-500 uppercase">Dados do computador</span></div>
+              <label className="block"><span className="block text-xs font-semibold text-slate-700 mb-1">Hostname</span><input value={formData.hostname} onChange={(e) => setFormData({ ...formData, hostname: e.target.value })} placeholder="Ex: GEN-NB-0003" className="w-full uppercase px-3 py-2 border border-slate-300 rounded-lg" /></label>
+              <label className="block"><span className="block text-xs font-semibold text-slate-700 mb-1">Sistema Operacional</span><input list="os-suggestions" value={formData.operating_system} onChange={(e) => setFormData({ ...formData, operating_system: e.target.value })} placeholder="Ex: Windows 11 Pro" className="w-full px-3 py-2 border border-slate-300 rounded-lg" /><datalist id="os-suggestions">{OS_SUGGESTIONS.map((os) => <option key={os} value={os} />)}</datalist></label>
+              <label className="block"><span className="block text-xs font-semibold text-slate-700 mb-1">Processador</span><input value={formData.processor} onChange={(e) => setFormData({ ...formData, processor: e.target.value })} placeholder="Ex: Intel Core i5-1135G7" className="w-full px-3 py-2 border border-slate-300 rounded-lg" /></label>
+              <label className="block"><span className="block text-xs font-semibold text-slate-700 mb-1">Memória</span><input value={formData.memory} onChange={(e) => setFormData({ ...formData, memory: e.target.value })} placeholder="Ex: 16 GB" className="w-full px-3 py-2 border border-slate-300 rounded-lg" /></label>
+              </>)}
               <label className="block sm:col-span-2"><span className="block text-xs font-semibold text-slate-700 mb-1">Observações</span><textarea rows={3} value={formData.notes} onChange={(e) => setFormData({ ...formData, notes: e.target.value })} className="w-full px-3 py-2 border border-slate-300 rounded-lg" /></label>
               <div className="sm:col-span-2 flex justify-end gap-2 pt-3 border-t border-slate-100"><button type="button" onClick={() => { setIsModalOpen(false); setEditingAsset(null); }} className="px-4 py-2 border border-slate-300 rounded-lg text-sm">Cancelar</button><button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold">{editingAsset ? 'Atualizar ativo' : 'Salvar ativo'}</button></div>
             </form>
@@ -404,7 +420,7 @@ export const Assets: React.FC = () => {
             </div>
 
             <div className="grid grid-cols-2 gap-3 text-xs bg-slate-50 p-4 rounded-xl border border-slate-100">
-              <div><span className="text-slate-400 block">Categoria:</span><span className="font-semibold text-slate-800">{selectedAsset.category}</span></div>
+              <div><span className="text-slate-400 block">Categoria:</span><span className="font-semibold text-slate-800">{categoryLabel(selectedAsset.category)}</span></div>
               <div><span className="text-slate-400 block">Número de série:</span><span className="font-semibold text-slate-800">{selectedAsset.serial_number || 'Não informado'}</span></div>
               <div><span className="text-slate-400 block">Unidade:</span><span className="font-semibold text-slate-800">{selectedAsset.unit}</span></div>
               <div><span className="text-slate-400 block">Condição:</span><span className="font-semibold text-slate-800">{selectedAsset.condition}</span></div>
@@ -412,6 +428,12 @@ export const Assets: React.FC = () => {
               <div><span className="text-slate-400 block">Situação:</span><span className="mt-1 inline-block">{getStatusBadge(selectedAsset.status)}</span></div>
               <div><span className="text-slate-400 block">Garantia até:</span><span className="font-semibold text-slate-800">{selectedAsset.warranty_until ? new Date(`${selectedAsset.warranty_until}T12:00:00Z`).toLocaleDateString('pt-BR') : 'Não informado'}</span></div>
               <div><span className="text-slate-400 block">Aquisição:</span><span className="font-semibold text-slate-800">{selectedAsset.acquisition_date ? new Date(`${selectedAsset.acquisition_date}T12:00:00Z`).toLocaleDateString('pt-BR') : 'Não informado'}</span></div>
+              {isComputer(selectedAsset.category) && (<>
+              <div><span className="text-slate-400 block">Hostname:</span><span className="font-semibold text-slate-800 font-mono">{selectedAsset.hostname || 'Não informado'}</span></div>
+              <div><span className="text-slate-400 block">Sistema operacional:</span><span className="font-semibold text-slate-800">{selectedAsset.operating_system || 'Não informado'}</span></div>
+              <div><span className="text-slate-400 block">Processador:</span><span className="font-semibold text-slate-800">{selectedAsset.processor || 'Não informado'}</span></div>
+              <div><span className="text-slate-400 block">Memória:</span><span className="font-semibold text-slate-800">{selectedAsset.memory || 'Não informado'}</span></div>
+              </>)}
               <div className="col-span-2"><span className="text-slate-400 block">Observações:</span><span className="font-semibold text-slate-800">{selectedAsset.notes || 'Nenhuma observação'}</span></div>
             </div>
 

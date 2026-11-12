@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { AssetService } from '../../services/assetService';
 import { Asset } from '../../types/asset';
-import { ASSET_CATEGORY_LABEL, ASSET_STATUS_LABEL, categoryLabel } from '../../lib/assetLabels';
+import { ASSET_CATEGORY_LABEL, ASSET_STATUS_LABEL, categoryLabel, isComputer } from '../../lib/assetLabels';
 import { brl, ReportColumn, ReportSection } from '../../lib/reports/tableReport';
 import { Field, FilterBar, inputCls, ReportActions, ReportError, ReportLoading, ReportTable, StatCards, useReportData } from './ReportKit';
 
@@ -21,6 +21,14 @@ const COLUMNS: ReportColumn<Asset>[] = [
   { header: 'Garantia até', value: (a) => a.warranty_until, kind: 'date', width: 12 },
 ];
 
+// Só entram quando o filtro é de computadores (ou todas as categorias, no Excel)
+const COMPUTER_COLUMNS: ReportColumn<Asset>[] = [
+  { header: 'Hostname', value: (a) => a.hostname, mono: true, width: 16 },
+  { header: 'Sistema operacional', value: (a) => a.operating_system, width: 18 },
+  { header: 'Processador', value: (a) => a.processor, width: 24 },
+  { header: 'Memória', value: (a) => a.memory, width: 10 },
+];
+
 /** Relatórios › Inventário de ativos */
 export const InventoryReport: React.FC = () => {
   const { data: assets, error, loading } = useReportData(() => AssetService.getAssets());
@@ -37,7 +45,7 @@ export const InventoryReport: React.FC = () => {
       .filter((a) => !category || a.category === category)
       .filter((a) => !status || a.status === status)
       .filter((a) => !unit || a.unit === unit)
-      .filter((a) => !q || [a.patrimony, a.serial_number, a.brand, a.model, a.assigned_to, a.notes].some((v) => v?.toLowerCase().includes(q)))
+      .filter((a) => !q || [a.patrimony, a.serial_number, a.brand, a.model, a.assigned_to, a.notes, a.hostname, a.processor, a.operating_system].some((v) => v?.toLowerCase().includes(q)))
       .sort((a, b) => a.patrimony.localeCompare(b.patrimony));
   }, [assets, category, status, unit, search]);
 
@@ -46,9 +54,10 @@ export const InventoryReport: React.FC = () => {
 
   const total = rows.reduce((s, a) => s + (a.purchase_cost || 0), 0);
   const count = (st: string) => rows.filter((a) => a.status === st).length;
+  const showSpecs = !category || isComputer(category);
   const section: ReportSection<Asset> = {
     title: 'Inventário de ativos',
-    columns: COLUMNS,
+    columns: showSpecs ? [...COLUMNS.slice(0, 4), ...COMPUTER_COLUMNS, ...COLUMNS.slice(4)] : COLUMNS,
     rows,
     footer: `${rows.length} ativos · custo de aquisição registrado: ${brl(total)}`,
     empty: 'Nenhum ativo com esses filtros.',
@@ -82,7 +91,7 @@ export const InventoryReport: React.FC = () => {
           </select>
         </Field>
         <Field label="Buscar">
-          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Patrimônio, série, modelo, responsável" className={`${inputCls} w-64`} />
+          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Patrimônio, série, hostname, modelo, responsável" className={`${inputCls} w-64`} />
         </Field>
         <div className="ml-auto"><ReportActions title="Inventário de ativos" subtitle={subtitle} fileSlug="inventario_ativos" sections={[section]} landscape /></div>
       </FilterBar>

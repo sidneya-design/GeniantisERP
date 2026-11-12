@@ -1,10 +1,11 @@
 import { EMAIL_RE, ImportColumn, matchOption, parseDate, parseMoney } from '../csv';
 import { AssetService } from '../../services/assetService';
 import { Asset, AssetCondition, AssetStatus } from '../../types/asset';
+import { ASSET_CATEGORY_LABEL, isComputer, OS_SUGGESTIONS } from '../assetLabels';
 import { Employee } from '../../types/employee';
 import { Importer, ImportError, PreparedRow } from './types';
 
-const CATEGORY_LABELS = ['Notebook', 'Desktop', 'Monitor', 'Celular / Tablet', 'Equipamento de rede', 'Periférico'];
+const CATEGORY_LABELS = Object.values(ASSET_CATEGORY_LABEL);
 
 const BASE_COLUMNS: ImportColumn[] = [
   { key: 'patrimony', header: 'Patrimônio', required: true, hint: 'Chave do cadastro: se já existir, a linha atualiza', example: 'GEN-0001' },
@@ -19,6 +20,10 @@ const BASE_COLUMNS: ImportColumn[] = [
   { key: 'acquisition_date', header: 'Data de aquisição', kind: 'date', hint: 'DD/MM/AAAA', example: '10/01/2025' },
   { key: 'purchase_cost', header: 'Custo de aquisição', kind: 'money', hint: 'Ex.: 4.599,90 (entra no Financeiro no mês da aquisição)', example: '4.599,90' },
   { key: 'warranty_until', header: 'Garantia até', kind: 'date', hint: 'DD/MM/AAAA', example: '10/01/2028' },
+  { key: 'hostname', header: 'Hostname', hint: 'Só para Notebook, Desktop e Servidor', example: 'GEN-NB-0001' },
+  { key: 'operating_system', header: 'Sistema Operacional', hint: `Só para Notebook, Desktop e Servidor. Ex.: ${OS_SUGGESTIONS.slice(0, 3).join(', ')}`, example: 'Windows 11 Pro' },
+  { key: 'processor', header: 'Processador', hint: 'Só para Notebook, Desktop e Servidor', example: 'Intel Core i5-1135G7' },
+  { key: 'memory', header: 'Memória', hint: 'Só para Notebook, Desktop e Servidor', example: '16 GB' },
   { key: 'notes', header: 'Observações', example: '' },
 ];
 
@@ -27,6 +32,8 @@ const CATEGORY_OPTIONS: { value: string; labels: string[] }[] = [
   { value: 'desktop', labels: ['Desktop', 'Computador', 'CPU'] },
   { value: 'monitor', labels: ['Monitor'] },
   { value: 'celular', labels: ['Celular', 'Tablet', 'Celular / Tablet', 'Smartphone'] },
+  { value: 'servidor', labels: ['Servidor', 'Server'] },
+  { value: 'impressora', labels: ['Impressora', 'Multifuncional', 'Printer'] },
   { value: 'rede', labels: ['Rede', 'Equipamento de rede'] },
   { value: 'perifericos', labels: ['Periférico', 'Periféricos', 'Perifericos'] },
 ];
@@ -87,7 +94,7 @@ export function createAssetImporter(existing: Asset[], employees: Employee[]): I
 
         const current = byPatrimony.get(key);
         const lineErrors: string[] = [];
-        const text = (k: 'serial_number' | 'brand' | 'model' | 'notes' | 'unit') =>
+        const text = (k: 'serial_number' | 'brand' | 'model' | 'notes' | 'unit' | 'hostname' | 'operating_system' | 'processor' | 'memory') =>
           values[k] || (current ? String(current[k] ?? '') : '');
 
         let category = current?.category || '';
@@ -175,6 +182,11 @@ export function createAssetImporter(existing: Asset[], employees: Employee[]): I
           warranty_until,
           purchase_cost,
           notes: text('notes') || null,
+          // Dados de computador: só gravados para Notebook, Desktop e Servidor
+          operating_system: isComputer(category) ? text('operating_system') || null : null,
+          memory: isComputer(category) ? text('memory') || null : null,
+          processor: isComputer(category) ? text('processor') || null : null,
+          hostname: isComputer(category) ? text('hostname').toUpperCase() || null : null,
         };
 
         prepared.push({
