@@ -1,10 +1,14 @@
 import React, { useMemo, useState } from 'react';
-import { ArrowLeft, ChevronRight, FileBarChart2, Laptop, ShieldCheck, Users } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, Cake, ChevronRight, FileBarChart2, KeyRound, Laptop, ShieldCheck, Users, Wrench } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { ModuleKey } from '../types';
 import { EmployeeAssetsReport } from '../components/reports/EmployeeAssetsReport';
 import { InventoryReport } from '../components/reports/InventoryReport';
 import { WarrantyReport } from '../components/reports/WarrantyReport';
+import { PendingReport } from '../components/reports/PendingReport';
+import { MaintenanceReport } from '../components/reports/MaintenanceReport';
+import { LicensesReport } from '../components/reports/LicensesReport';
+import { BirthdayEmailsReport } from '../components/reports/BirthdayEmailsReport';
 
 interface ReportDef {
   id: string;
@@ -45,6 +49,42 @@ const REPORTS: ReportDef[] = [
     module: 'assets',
     icon: ShieldCheck,
     component: WarrantyReport,
+  },
+  {
+    id: 'pendencias',
+    title: 'Pendências de entregas e termos',
+    description: 'Equipamentos com funcionários desligados, termos não assinados ou sem PDF e ativos em uso sem entrega registrada.',
+    tag: 'Entregas',
+    module: 'movements',
+    icon: AlertTriangle,
+    component: PendingReport,
+  },
+  {
+    id: 'manutencoes',
+    title: 'Manutenções por período',
+    description: 'Chamados abertos no período, custo total e os equipamentos que mais voltam para manutenção.',
+    tag: 'Manutenções',
+    module: 'maintenance',
+    icon: Wrench,
+    component: MaintenanceReport,
+  },
+  {
+    id: 'licencas',
+    title: 'Licenças por funcionário',
+    description: 'Quem usa cada assinatura, custo estimado por licença e alerta de licenças ainda atribuídas a desligados.',
+    tag: 'Licenças',
+    module: 'subscriptions',
+    icon: KeyRound,
+    component: LicensesReport,
+  },
+  {
+    id: 'envios-aniversario',
+    title: 'Envios de aniversário',
+    description: 'Histórico dos e-mails de aniversário: quem recebeu, quando, se foi automático ou manual e as falhas.',
+    tag: 'Aniversariantes',
+    module: 'birthdays',
+    icon: Cake,
+    component: BirthdayEmailsReport,
   },
 ];
 
