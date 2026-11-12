@@ -1,6 +1,8 @@
 import { usePermission } from '../lib/usePermission';
 import React, { useEffect, useMemo, useState } from 'react';
-import { Laptop, Plus, Search, QrCode, Eye, X, CheckCircle2, ShieldAlert } from 'lucide-react';
+import { Laptop, Plus, Search, QrCode, Eye, X, CheckCircle2, ShieldAlert, Upload } from 'lucide-react';
+import { ImportModal } from '../components/common/ImportModal';
+import { createAssetImporter } from '../lib/importers/assetImporter';
 import { AssetService } from '../services/assetService';
 import { Asset } from '../types/asset';
 import { EmployeeService } from '../services/employeeService';
@@ -24,6 +26,7 @@ const EMPTY_ASSET_FORM = {
 
 export const Assets: React.FC = () => {
   const { canEdit } = usePermission('assets');
+  const [isImportOpen, setIsImportOpen] = useState(false);
   const [assets, setAssets] = useState<Asset[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -204,6 +207,11 @@ export const Assets: React.FC = () => {
             <QrCode className="w-4 h-4" /> Imprimir Etiquetas
           </button>
 {canEdit && (
+          <button type="button" onClick={() => setIsImportOpen(true)} className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm font-semibold transition-colors">
+            <Upload className="w-4 h-4" /> Importar planilha
+          </button>
+          )}
+          {canEdit && (
           <button type="button" onClick={handleNew} className="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-semibold shadow-xs transition-colors">
             <Plus className="w-4 h-4" /> Novo Ativo
           </button>
@@ -366,6 +374,15 @@ export const Assets: React.FC = () => {
             </form>
           </div>
         </div>
+      )}
+
+      {isImportOpen && (
+        <ImportModal
+          title="Importar ativos"
+          importer={createAssetImporter(assets, employees)}
+          onClose={() => setIsImportOpen(false)}
+          onFinished={() => { loadAssets(); }}
+        />
       )}
 
       {isDetailsOpen && selectedAsset && (

@@ -5,6 +5,7 @@ import {
   Plus, 
   Search, 
   Download, 
+  Upload,
   Eye, 
   Cake, 
   X, 
@@ -19,30 +20,10 @@ import { useAuth } from '../contexts/AuthContext';
 import { usePermission } from '../lib/usePermission';
 import { EmployeeService } from '../services/employeeService';
 import { Employee, EmployeeStatus } from '../types/employee';
+import { formatCpf, isValidCpf } from '../lib/cpf';
+import { ImportModal } from '../components/common/ImportModal';
+import { createEmployeeImporter } from '../lib/importers/employeeImporter';
 
-function formatCpf(value: string): string {
-  const digits = value.replace(/\D/g, '').slice(0, 11);
-  return digits
-    .replace(/(\d{3})(\d)/, '$1.$2')
-    .replace(/(\d{3})(\d)/, '$1.$2')
-    .replace(/(\d{3})(\d{1,2})$/, '$1-$2');
-}
-
-function isValidCpf(value: string): boolean {
-  const cpf = value.replace(/\D/g, '');
-  if (cpf.length !== 11 || /^(\d)\1{10}$/.test(cpf)) return false;
-
-  const calculateDigit = (length: number) => {
-    let sum = 0;
-    for (let index = 0; index < length; index += 1) {
-      sum += Number(cpf[index]) * (length + 1 - index);
-    }
-    const remainder = (sum * 10) % 11;
-    return remainder === 10 ? 0 : remainder;
-  };
-
-  return calculateDigit(9) === Number(cpf[9]) && calculateDigit(10) === Number(cpf[10]);
-}
 
 export const Employees: React.FC = () => {
   const { profile } = useAuth();
@@ -50,6 +31,7 @@ export const Employees: React.FC = () => {
   const canSeePrivate = ['admin', 'adm', 'rh'].includes(profile?.role || '');
   // Cadastrar e editar: Admin, RH e TI (ADM só consulta)
   const { canEdit } = usePermission('employees');
+  const [isImportOpen, setIsImportOpen] = useState(false);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterDept, setFilterDept] = useState('todos');
@@ -80,6 +62,7 @@ export const Employees: React.FC = () => {
     admission_date: new Date().toISOString().split('T')[0],
     birth_date: '',
     status: 'ativo' as EmployeeStatus,
+    termination_date: '',
     restricted_notes: '',
     photo_url: '',
   });
@@ -154,6 +137,7 @@ export const Employees: React.FC = () => {
         admission_date: new Date().toISOString().split('T')[0],
         birth_date: '',
         status: 'ativo',
+        termination_date: '',
         restricted_notes: '',
         photo_url: '',
       });
@@ -184,6 +168,7 @@ export const Employees: React.FC = () => {
       admission_date: employee.admission_date,
       birth_date: employee.birth_date || '',
       status: employee.status,
+      termination_date: employee.termination_date || '',
       restricted_notes: employee.restricted_notes || '',
       photo_url: employee.photo_url || '',
     });
@@ -214,6 +199,7 @@ export const Employees: React.FC = () => {
       admission_date: new Date().toISOString().split('T')[0],
       birth_date: '',
       status: 'ativo',
+      termination_date: '',
       restricted_notes: '',
       photo_url: '',
     });
@@ -274,6 +260,14 @@ export const Employees: React.FC = () => {
           >
             <Download className="w-4 h-4" /> Exportar CSV
           </button>
+          {canEdit && (
+          <button
+            onClick={() => setIsImportOpen(true)}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm font-semibold transition-colors cursor-pointer"
+          >
+            <Upload className="w-4 h-4" /> Importar planilha
+          </button>
+          )}
           {canEdit && (
           <button 
             onClick={handleNew}
@@ -682,6 +676,50 @@ export const Employees: React.FC = () => {
                     className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-600"
                   />
                 </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Situação
+                  </label>
+                  <select
+                    value={formData.status}
+                    onChange={(e) => {
+                      const status = e.target.value as EmployeeStatus;
+                      setFormData({
+                        ...formData,
+                        status,
+                        termination_date: status === 'desligado'
+                          ? formData.termination_date || new Date().toISOString().split('T')[0]
+                          : '',
+                      });
+                    }}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-600"
+                  >
+                    <option value="ativo">Ativo</option>
+                    <option value="afastado">Afastado</option>
+                    <option value="desligado">Desligado</option>
+                  </select>
+                  {formData.status === 'desligado' && (
+                    <span className="text-[11px] text-slate-500 mt-0.5 block">
+                      Desligado não recebe e-mail de aniversário nem pode receber ativos.
+                    </span>
+                  )}
+                </div>
+
+                {formData.status === 'desligado' && (
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      Data de Desligamento
+                    </label>
+                    <input
+                      type="date"
+                      required
+                      value={formData.termination_date}
+                      onChange={(e) => setFormData({ ...formData, termination_date: e.target.value })}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-600"
+                    />
+                  </div>
+                )}
               </div>
 
               <div className="flex justify-end gap-2 pt-4 border-t border-slate-100">
@@ -705,6 +743,15 @@ export const Employees: React.FC = () => {
       )}
 
       {/* Modal: Ficha Detalhada do Colaborador */}
+      {isImportOpen && (
+        <ImportModal
+          title="Importar funcionários"
+          importer={createEmployeeImporter(employees, canSeePrivate)}
+          onClose={() => setIsImportOpen(false)}
+          onFinished={() => { loadData(); }}
+        />
+      )}
+
       {isDetailsOpen && selectedEmployee && (
         <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-xl w-full p-6 space-y-4">
