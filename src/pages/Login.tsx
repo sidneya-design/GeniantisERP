@@ -7,8 +7,8 @@ import { getDefaultRouteForRole } from '../lib/permissions';
 export const Login: React.FC = () => {
   const { signIn, isMockSession } = useAuth();
   const navigate = useNavigate();
-  const [email, setEmail] = useState('admin@geniantis.com');
-  const [password, setPassword] = useState('admin123');
+  const [email, setEmail] = useState(isMockSession ? 'admin@geniantis.com' : '');
+  const [password, setPassword] = useState(isMockSession ? 'admin123' : '');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 

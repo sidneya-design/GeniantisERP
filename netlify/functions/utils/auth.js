@@ -36,13 +36,21 @@ async function inicializarUsuariosSeNecessario(store) {
   const rawUsers = await store.get('usuarios');
 
   if (!rawUsers) {
+    // O primeiro administrador vem das variáveis de ambiente — nunca de
+    // credenciais fixas no código.
+    const email = (process.env.ADMIN_INITIAL_EMAIL || '').trim();
+    const senha = process.env.ADMIN_INITIAL_PASSWORD || '';
+
+    if (!email || senha.length < 8) {
+      console.error('[Auth] Defina ADMIN_INITIAL_EMAIL e ADMIN_INITIAL_PASSWORD (mín. 8 caracteres) para criar o primeiro administrador.');
+      return [];
+    }
+
     const defaultUsers = [
-      { email: 'admin@demo.com', passwordHash: hashPassword('admin123'), role: 'admin' },
-      { email: 'admin2@demo.com', passwordHash: hashPassword('admin123'), role: 'admin' },
-      { email: 'admin3@demo.com', passwordHash: hashPassword('admin123'), role: 'viewer' }
+      { email, passwordHash: hashPassword(senha), role: 'admin' }
     ];
     await store.set('usuarios', JSON.stringify(defaultUsers));
-    console.log('[Auth] Usuários administradores inicializados.');
+    console.log('[Auth] Administrador inicial criado a partir das variáveis de ambiente.');
     return defaultUsers;
   }
 

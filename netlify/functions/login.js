@@ -34,7 +34,7 @@ exports.handler = async (event, context) => {
 
     const store = obterStore('parabensflow-dados');
     
-    // Obter usuários (e cria os 3 padrão se for o primeiro acesso)
+    // Obter usuários (cria o admin inicial via env vars no primeiro acesso)
     const usuarios = await inicializarUsuariosSeNecessario(store);
 
     // Buscar o usuário correspondente
