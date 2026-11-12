@@ -773,8 +773,9 @@ function obterIdsContatosVisiveis() {
 }
 
 function atualizarControlesSelecaoContatos() {
-  const role = sessionStorage.getItem('parabensflow_role');
-  const showBulkControls = role !== 'viewer';
+  // Seleção/exclusão em lote fica oculta: os contatos vêm do cadastro de
+  // Funcionários do ERP e são gerenciados lá.
+  const showBulkControls = false;
   const bulkBar = document.getElementById('contactsBulkBar');
   const selectAll = document.getElementById('selectAllContacts');
   const bulkCount = document.getElementById('bulkSelectionCount');

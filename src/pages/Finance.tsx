@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Wallet, CreditCard, Wrench, ChevronLeft, ChevronRight, AlertCircle, RefreshCw, FileSpreadsheet } from 'lucide-react';
 import { SubscriptionService, costInMonth, dueDateInMonth, addMonths, currentMonth, brl, formatDate, formatMonth, PERIODICITY_LABEL } from '../services/subscriptionService';
-import { MaintenanceService } from '../services/maintenanceService';
 import { Subscription } from '../types/subscription';
 import { Maintenance } from '../types/maintenance';
 import { exportFinanceToExcel } from '../lib/financeExport';
@@ -22,12 +21,14 @@ export const Finance: React.FC = () => {
 
   const load = async () => {
     setLoading(true);
-    const errs: string[] = [];
-    await Promise.all([
-      SubscriptionService.list().then(setSubs).catch((e) => errs.push(`Assinaturas: ${e.message}`)),
-      MaintenanceService.getMaintenances().then(setMaints).catch((e) => errs.push(`Manutenções: ${e.message}`)),
-    ]);
-    setErrors(errs);
+    try {
+      const data = await SubscriptionService.financeData();
+      setSubs(data.subscriptions);
+      setMaints(data.maintenances);
+      setErrors([]);
+    } catch (e: any) {
+      setErrors([e.message]);
+    }
     setLoading(false);
   };
 

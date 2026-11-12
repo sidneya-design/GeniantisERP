@@ -5,6 +5,7 @@ import {
   SubscriptionInput,
   SubscriptionPeriodicity,
 } from '../types/subscription';
+import { Maintenance } from '../types/maintenance';
 
 function fail(error: { message: string; code?: string } | null): never {
   // 42P01 = tabela inexistente: a migration ainda não foi aplicada no Supabase
@@ -52,6 +53,29 @@ export const SubscriptionService = {
   async remove(id: string): Promise<void> {
     const { error } = await supabase.from('subscriptions').delete().eq('id', id);
     if (error) fail(error);
+  },
+
+  /** Dados do Financeiro (assinaturas + manutenções com custo) — Admin, ADM e RH */
+  async financeData(): Promise<{ subscriptions: Subscription[]; maintenances: Maintenance[] }> {
+    const { data, error } = await supabase.rpc('get_finance_data');
+    if (error) {
+      if (/get_finance_data|function/i.test(error.message)) {
+        throw new Error('Rode a migration 20261112000003_finance_access.sql no Supabase.');
+      }
+      fail(error);
+    }
+    const d = (data || {}) as any;
+    return {
+      subscriptions: (d.subscriptions || []).map(mapSubscription),
+      maintenances: (d.maintenances || []).map((m: any) => ({
+        ...m,
+        asset_id: '',
+        patrimony: m.patrimony || '—',
+        equipment: m.equipment || 'Equipamento não identificado',
+        cost: m.cost === null ? null : Number(m.cost),
+        created_at: m.opened_at,
+      })),
+    };
   },
 
   async listAssignments(): Promise<SubscriptionAssignment[]> {

@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Lock, Mail, Shield, AlertCircle } from 'lucide-react';
-import { getDefaultRouteForRole } from '../lib/permissions';
 import { LogoGeniantis } from '../components/common/LogoGeniantis';
 
 export const Login: React.FC = () => {
@@ -23,12 +22,8 @@ export const Login: React.FC = () => {
       if (res.error) {
         setError(res.error.message || 'Credenciais inválidas.');
       } else {
-        const lower = email.toLowerCase();
-        if (lower.includes('ti')) {
-          navigate(getDefaultRouteForRole('ti'));
-        } else {
-          navigate('/');
-        }
+        // Todos entram na Visão Geral (perfis sem acesso a ela são redirecionados pela rota)
+        navigate('/', { replace: true });
       }
     } catch (err: any) {
       setError(err?.message || 'Erro inesperado ao conectar.');

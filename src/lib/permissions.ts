@@ -31,9 +31,9 @@ export const ROLE_PERMISSIONS: Record<UserRole, Record<ModuleKey, ModulePermissi
     logs: { canView: false, canEdit: false, canDelete: false },
     settings: { canView: false, canEdit: false, canDelete: false },
   },
-  // TI: Vê Ativos de TI, Entrega e Devoluções, Manutenções, Domínios e Renovações
+  // TI: Vê Visão Geral, Ativos de TI, Entrega e Devoluções, Manutenções, Domínios e Renovações
   ti: {
-    overview: { canView: false, canEdit: false, canDelete: false },
+    overview: { canView: true, canEdit: false, canDelete: false },
     employees: { canView: false, canEdit: false, canDelete: false },
     assets: { canView: true, canEdit: true, canDelete: false },
     movements: { canView: true, canEdit: true, canDelete: false },
@@ -46,7 +46,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, Record<ModuleKey, ModulePermissi
     logs: { canView: false, canEdit: false, canDelete: false },
     settings: { canView: false, canEdit: false, canDelete: false },
   },
-  // RH: Vê Visão Geral, Funcionários, Aniversariantes
+  // RH: Vê Visão Geral, Funcionários, Aniversariantes e Financeiro (leitura)
   rh: {
     overview: { canView: true, canEdit: false, canDelete: false },
     employees: { canView: true, canEdit: true, canDelete: false },
@@ -57,7 +57,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, Record<ModuleKey, ModulePermissi
     domains: { canView: false, canEdit: false, canDelete: false },
     birthdays: { canView: true, canEdit: true, canDelete: false },
     reports: { canView: false, canEdit: false, canDelete: false },
-    finance: { canView: false, canEdit: false, canDelete: false },
+    finance: { canView: true, canEdit: false, canDelete: false },
     logs: { canView: false, canEdit: false, canDelete: false },
     settings: { canView: false, canEdit: false, canDelete: false },
   },
@@ -104,7 +104,6 @@ export function canAccessModule(role: UserRole | undefined, module: ModuleKey): 
 }
 
 export function getDefaultRouteForRole(role: UserRole | undefined): string {
-  if (role === 'ti') return '/ativos';
   if (role === 'financeiro') return '/assinaturas';
   return '/';
 }

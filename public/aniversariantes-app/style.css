@@ -1143,3 +1143,9 @@ body.pdf-banner-mode .banner-preview-wrap {
   transform-origin: top left !important;
   transform: scale(1) !important;
 }
+
+/* Seleção em lote oculta: contatos são gerenciados no cadastro de Funcionários do ERP */
+#contactsBulkBar,
+.bulk-column {
+  display: none !important;
+}
