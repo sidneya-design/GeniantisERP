@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Lock, Mail, Shield, AlertCircle } from 'lucide-react';
 import { getDefaultRouteForRole } from '../lib/permissions';
+import { LogoGeniantis } from '../components/common/LogoGeniantis';
 
 export const Login: React.FC = () => {
   const { signIn, isMockSession } = useAuth();
@@ -37,25 +38,14 @@ export const Login: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-900 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
-      <div className="sm:mx-auto sm:w-full sm:max-w-md text-center">
-        <div className="mx-auto w-full max-w-sm bg-white rounded-2xl px-6 py-5 shadow-xl">
-          <img
-            src="/logo-geniantis.svg"
-            alt="Geniantis — Inteligência Coletiva"
-            className="w-full h-auto"
-          />
-        </div>
-        <h2 className="mt-5 text-xl font-bold text-white tracking-tight">
-          Geniantis<span className="text-blue-400">ERP</span>
-        </h2>
-        <p className="mt-2 text-sm text-slate-400">
-          Sistema Integrado de Gestão de Ativos, TI e Pessoas
-        </p>
+    <div className="min-h-screen bg-slate-100 bg-[radial-gradient(circle_at_15%_20%,rgba(68,172,225,0.12),transparent_40%),radial-gradient(circle_at_85%_80%,rgba(244,129,32,0.10),transparent_40%)] flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8">
+      {/* Mesma largura e padding horizontal do cartão: o logo alinha com os campos */}
+      <div className="mx-auto w-full max-w-md px-6 sm:px-10">
+        <LogoGeniantis className="w-full -translate-x-3" />
       </div>
 
-      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="bg-white py-8 px-6 shadow-xl rounded-2xl sm:px-10 border border-slate-100">
+      <div className="mt-8 mx-auto w-full max-w-md">
+        <div className="bg-white py-8 px-6 shadow-lg shadow-slate-200/70 rounded-2xl sm:px-10 border border-slate-200">
           {error && (
             <div className="mb-4 bg-rose-50 border border-rose-200 text-rose-700 px-4 py-3 rounded-xl text-sm flex items-start gap-2">
               <AlertCircle className="w-5 h-5 shrink-0 text-rose-500 mt-0.5" />

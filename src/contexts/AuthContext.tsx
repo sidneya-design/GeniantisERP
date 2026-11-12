@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { UserProfile, UserRole, ModuleKey } from '../types';
-import { canAccessModule } from '../lib/permissions';
+import { canAccessModule, canLogin } from '../lib/permissions';
 import { clearParabensflowSession, fetchParabensflowSession, storeParabensflowSession } from '../lib/parabensflowSso';
 
 interface AuthContextType {
@@ -26,6 +26,23 @@ const DEFAULT_DEMO_PROFILE: UserProfile = {
   created_at: new Date().toISOString(),
   updated_at: new Date().toISOString(),
 };
+
+// Registra entrada/saída no log de auditoria (falha silenciosa: não bloqueia o login)
+async function logSessionEvent(userId: string, action: 'login' | 'logout') {
+  try {
+    const { data: p } = await supabase.from('profiles').select('email, full_name').eq('id', userId).single();
+    await supabase.from('audit_logs').insert({
+      user_id: userId,
+      user_email: p?.email ?? null,
+      user_name: p?.full_name ?? null,
+      action,
+      entity: 'sessao',
+      summary: action === 'login' ? 'Entrou no sistema' : 'Saiu do sistema',
+    });
+  } catch {
+    // ignora
+  }
+}
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<any | null>(null);
@@ -60,9 +77,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return;
       }
 
-      if (!data || !data.is_active) {
+      if (!data || !data.is_active || !canLogin(data.role)) {
+        // Perfil inativo ou sem permissão de login: encerra a sessão
         setProfile(null);
         clearParabensflowSSO();
+        await supabase.auth.signOut();
         return;
       }
 
@@ -144,12 +163,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       email,
       password: pass,
     });
+    if (error) return { error: error as Error };
 
-    return { error: error as Error | null };
+    // Confere o perfil antes de liberar a entrada
+    const { data: perfil } = await supabase
+      .from('profiles')
+      .select('role, is_active')
+      .eq('id', data.user.id)
+      .single();
+
+    if (!perfil || !perfil.is_active || !canLogin(perfil.role)) {
+      await supabase.auth.signOut();
+      return {
+        error: new Error(
+          !perfil || !perfil.is_active
+            ? 'Seu usuário está inativo. Fale com o administrador.'
+            : 'Seu perfil não tem acesso ao ERP. Fale com o administrador.'
+        ),
+      };
+    }
+
+    void logSessionEvent(data.user.id, 'login');
+    return { error: null };
   };
 
   const signOut = async () => {
     clearParabensflowSSO();
+    if (isSupabaseConfigured && user?.id) await logSessionEvent(user.id, 'logout');
     if (!isSupabaseConfigured) {
       localStorage.removeItem('geniantis_dev_role');
       setUser(null);

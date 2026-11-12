@@ -156,6 +156,27 @@ async function obterFuncionariosERP() {
     }));
 }
 
+// Grava cada envio no log de auditoria do ERP (aparece na página de Logs)
+async function registrarEnviosNoLog(resultados, origem) {
+  const url = (process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '').replace(/\/+$/, '');
+  const chave = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !chave) return;
+  const headers = { apikey: chave, 'Content-Type': 'application/json' };
+  if (chave.startsWith('eyJ')) headers.Authorization = `Bearer ${chave}`;
+  const rows = resultados.map(r => ({
+    user_email: origem.startsWith('manual:') ? origem.slice(7) : 'sistema',
+    action: r.enviado ? 'email_sent' : 'email_failed',
+    entity: 'aniversarios',
+    summary: `${r.enviado ? 'E-mail de aniversário enviado para' : 'Falha ao enviar e-mail de aniversário para'} ${r.nome} (${r.email})`,
+    details: { origem: origem.startsWith('manual:') ? 'manual' : 'automatico', email: r.email, nome: r.nome, ...(r.enviado ? {} : { erro: String(r.detalhe) }) },
+  }));
+  try {
+    await fetch(`${url}/rest/v1/audit_logs`, { method: 'POST', headers, body: JSON.stringify(rows) });
+  } catch (e) {
+    console.error('Falha ao gravar envios no log:', e);
+  }
+}
+
 // Registro de quem já recebeu o e-mail no ano: { [idFuncionario]: ano }
 async function obterRegistroEnvios(store) {
   const raw = await store.get('envios_aniversario');
@@ -168,7 +189,7 @@ async function obterRegistroEnvios(store) {
  *
  * @returns {Promise<object>} resumo do disparo
  */
-async function processarEnvioAniversarios() {
+async function processarEnvioAniversarios(origem = 'automatico') {
   // 1️⃣ Carrega funcionários, configuração do template e registro de envios
   const funcionarios = await obterFuncionariosERP();
   const { email_assunto, email_template, email_imagem, email_cc, email_cco } = await getConfig();
@@ -207,6 +228,7 @@ async function processarEnvioAniversarios() {
   if (resultados.some(r => r.enviado)) {
     await store.set('envios_aniversario', JSON.stringify(registro));
   }
+  if (resultados.length) await registrarEnviosNoLog(resultados, origem);
 
   // 4️⃣ Retorna resumo
   const enviados = resultados.filter(r => r.enviado).length;

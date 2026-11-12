@@ -35,7 +35,7 @@ exports.handler = async (event, context) => {
     }
 
     // 2. Processar envio de e-mails
-    const res = await processarEnvioAniversarios();
+    const res = await processarEnvioAniversarios(`manual:${adminSession.email}`);
 
     return {
       statusCode: 200,

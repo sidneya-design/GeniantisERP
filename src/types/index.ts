@@ -45,6 +45,8 @@ export type ModuleKey =
   | 'domains'
   | 'birthdays'
   | 'reports'
+  | 'finance'
+  | 'logs'
   | 'settings';
 
 export interface ModulePermission {

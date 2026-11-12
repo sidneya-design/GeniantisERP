@@ -14,6 +14,9 @@ import {
   ChevronLeft,
   ChevronRight,
   ShieldCheck,
+  UserCog,
+  Wallet,
+  ScrollText,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { ModuleKey } from '../../types';
@@ -41,10 +44,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
     { name: 'Entregas & Devoluções', path: '/movimentacoes', icon: ArrowLeftRight, moduleKey: 'movements' },
     { name: 'Manutenções', path: '/manutencoes', icon: Wrench, moduleKey: 'maintenance' },
     { name: 'Assinaturas & Licenças', path: '/assinaturas', icon: CreditCard, moduleKey: 'subscriptions' },
+    { name: 'Financeiro', path: '/financeiro', icon: Wallet, moduleKey: 'finance' },
     { name: 'Domínios & Renovações', path: '/dominios', icon: Globe, moduleKey: 'domains' },
     { name: 'Aniversariantes', path: '/aniversariantes', icon: Cake, moduleKey: 'birthdays', badge: 'Módulo' },
     // Relatórios oculto temporariamente por solicitação do usuário
     // { name: 'Relatórios', path: '/relatorios', icon: FileBarChart2, moduleKey: 'reports' },
+    { name: 'Usuários', path: '/usuarios', icon: UserCog, moduleKey: 'settings' },
+    { name: 'Logs de Atividade', path: '/logs', icon: ScrollText, moduleKey: 'logs' },
     { name: 'Configurações', path: '/configuracoes', icon: Settings, moduleKey: 'settings' },
   ];
 

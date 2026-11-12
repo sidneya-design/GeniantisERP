@@ -9,3 +9,37 @@
   }
 }
 
+
+/* Barras de rolagem finas e arredondadas em todo o sistema.
+   O track transparente com margem vertical evita que a barra encoste
+   nos cantos arredondados das janelas (modais). */
+/* Firefox (no Chrome essas propriedades desativariam o estilo abaixo) */
+@supports (-moz-appearance: none) {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: #cbd5e1 transparent;
+  }
+}
+
+@layer base {
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+    margin: 14px 0;
+  }
+  ::-webkit-scrollbar-thumb {
+    background-color: #cbd5e1;
+    border-radius: 9999px;
+    border: 3px solid transparent;
+    background-clip: content-box;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: #94a3b8;
+  }
+  ::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+}

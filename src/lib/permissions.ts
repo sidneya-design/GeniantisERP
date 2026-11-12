@@ -12,6 +12,8 @@ export const ROLE_PERMISSIONS: Record<UserRole, Record<ModuleKey, ModulePermissi
     domains: { canView: true, canEdit: true, canDelete: true },
     birthdays: { canView: true, canEdit: true, canDelete: true },
     reports: { canView: true, canEdit: true, canDelete: true },
+    finance: { canView: true, canEdit: true, canDelete: true },
+    logs: { canView: true, canEdit: false, canDelete: false },
     settings: { canView: true, canEdit: true, canDelete: true },
   },
   // ADM: Vê tudo menos os domínios e configurações
@@ -25,6 +27,8 @@ export const ROLE_PERMISSIONS: Record<UserRole, Record<ModuleKey, ModulePermissi
     domains: { canView: false, canEdit: false, canDelete: false },
     birthdays: { canView: true, canEdit: true, canDelete: false },
     reports: { canView: true, canEdit: false, canDelete: false },
+    finance: { canView: true, canEdit: false, canDelete: false },
+    logs: { canView: false, canEdit: false, canDelete: false },
     settings: { canView: false, canEdit: false, canDelete: false },
   },
   // TI: Vê Ativos de TI, Entrega e Devoluções, Manutenções, Domínios e Renovações
@@ -38,6 +42,8 @@ export const ROLE_PERMISSIONS: Record<UserRole, Record<ModuleKey, ModulePermissi
     domains: { canView: true, canEdit: true, canDelete: false },
     birthdays: { canView: false, canEdit: false, canDelete: false },
     reports: { canView: false, canEdit: false, canDelete: false },
+    finance: { canView: false, canEdit: false, canDelete: false },
+    logs: { canView: false, canEdit: false, canDelete: false },
     settings: { canView: false, canEdit: false, canDelete: false },
   },
   // RH: Vê Visão Geral, Funcionários, Aniversariantes
@@ -51,6 +57,8 @@ export const ROLE_PERMISSIONS: Record<UserRole, Record<ModuleKey, ModulePermissi
     domains: { canView: false, canEdit: false, canDelete: false },
     birthdays: { canView: true, canEdit: true, canDelete: false },
     reports: { canView: false, canEdit: false, canDelete: false },
+    finance: { canView: false, canEdit: false, canDelete: false },
+    logs: { canView: false, canEdit: false, canDelete: false },
     settings: { canView: false, canEdit: false, canDelete: false },
   },
   financeiro: {
@@ -63,6 +71,8 @@ export const ROLE_PERMISSIONS: Record<UserRole, Record<ModuleKey, ModulePermissi
     domains: { canView: true, canEdit: false, canDelete: false },
     birthdays: { canView: false, canEdit: false, canDelete: false },
     reports: { canView: true, canEdit: false, canDelete: false },
+    finance: { canView: false, canEdit: false, canDelete: false },
+    logs: { canView: false, canEdit: false, canDelete: false },
     settings: { canView: false, canEdit: false, canDelete: false },
   },
   consulta: {
@@ -75,9 +85,18 @@ export const ROLE_PERMISSIONS: Record<UserRole, Record<ModuleKey, ModulePermissi
     domains: { canView: true, canEdit: false, canDelete: false },
     birthdays: { canView: true, canEdit: false, canDelete: false },
     reports: { canView: true, canEdit: false, canDelete: false },
+    finance: { canView: false, canEdit: false, canDelete: false },
+    logs: { canView: false, canEdit: false, canDelete: false },
     settings: { canView: false, canEdit: false, canDelete: false },
   },
 };
+
+// Perfis que podem entrar no ERP. Os demais (financeiro, consulta) são barrados no login.
+export const LOGIN_ROLES: UserRole[] = ['admin', 'adm', 'ti', 'rh'];
+
+export function canLogin(role: UserRole | undefined | null): boolean {
+  return !!role && LOGIN_ROLES.includes(role);
+}
 
 export function canAccessModule(role: UserRole | undefined, module: ModuleKey): boolean {
   if (!role) return false;

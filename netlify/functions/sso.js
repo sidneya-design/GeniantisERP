@@ -53,6 +53,9 @@ exports.handler = async (event) => {
     if (!perfilRes.ok) return resposta(403, { error: 'Não foi possível ler o perfil do usuário.' });
     const [perfil] = await perfilRes.json();
     if (!perfil || !perfil.is_active) return resposta(403, { error: 'Usuário sem perfil ativo no ERP.' });
+    if (!['admin', 'adm', 'ti', 'rh'].includes(perfil.role)) {
+      return resposta(403, { error: 'Perfil sem acesso ao ERP.' });
+    }
 
     const email = perfil.email || user.email;
     const role = mapearRole(perfil.role);

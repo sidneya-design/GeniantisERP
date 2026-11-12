@@ -16,6 +16,9 @@ import { Domains } from './pages/Domains';
 import { Birthdays } from './pages/Birthdays';
 import { Reports } from './pages/Reports';
 import { Settings } from './pages/Settings';
+import { Users } from './pages/Users';
+import { Finance } from './pages/Finance';
+import { Logs } from './pages/Logs';
 
 export const App: React.FC = () => {
   return (
@@ -113,6 +116,33 @@ export const App: React.FC = () => {
               }
             />
             
+            <Route
+              path="financeiro"
+              element={
+                <ProtectedRoute moduleKey="finance">
+                  <Finance />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="logs"
+              element={
+                <ProtectedRoute moduleKey="logs">
+                  <Logs />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="usuarios"
+              element={
+                <ProtectedRoute moduleKey="settings">
+                  <Users />
+                </ProtectedRoute>
+              }
+            />
+
             <Route
               path="configuracoes"
               element={
