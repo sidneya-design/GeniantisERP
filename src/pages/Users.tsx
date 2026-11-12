@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { UserCog, Plus, X, KeyRound, RefreshCw, Search, AlertCircle, CheckCircle2, Copy, Users as UsersIcon, Camera } from 'lucide-react';
+import { UserCog, Plus, X, KeyRound, RefreshCw, Search, AlertCircle, CheckCircle2, Copy, Users as UsersIcon, Camera, Pencil } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { UserProfile, UserRole } from '../types';
 import { ROLE_INFO, ROLE_ORDER, UserService, AvatarService, generatePassword } from '../services/userService';
@@ -32,6 +32,9 @@ export const Users: React.FC = () => {
   const [uploadingId, setUploadingId] = useState<string | null>(null);
 
   const [resetTarget, setResetTarget] = useState<UserProfile | null>(null);
+  const [editTarget, setEditTarget] = useState<UserProfile | null>(null);
+  const [editForm, setEditForm] = useState({ full_name: '', email: '' });
+  const [editing, setEditing] = useState(false);
   const [newPassword, setNewPassword] = useState('');
   const [resetting, setResetting] = useState(false);
 
@@ -48,6 +51,7 @@ export const Users: React.FC = () => {
 
   useEffect(() => {
     load();
+    EmployeeService.getEmployees().then(setEmployees).catch(() => setEmployees([]));
   }, []);
 
   const filtered = useMemo(() => {
@@ -102,16 +106,68 @@ export const Users: React.FC = () => {
 
   // Funcionários que ainda não têm usuário no ERP (e não estão desligados)
   const existingEmails = useMemo(() => new Set(users.map((u) => u.email?.toLowerCase())), [users]);
+  const linkedEmployeeIds = useMemo(() => new Set(users.map((u) => u.employee_id).filter(Boolean)), [users]);
+  const employeeById = useMemo(() => new Map(employees.map((e) => [e.id, e])), [employees]);
+
+  // E-mail do cadastro de funcionários diferente do login do usuário
+  const emailMismatch = (u: UserProfile) => {
+    const emp = u.employee_id ? employeeById.get(u.employee_id) : undefined;
+    return emp?.email && emp.email.toLowerCase() !== u.email?.toLowerCase() ? emp.email.toLowerCase() : null;
+  };
+
+  const openEdit = (u: UserProfile) => {
+    setEditTarget(u);
+    setEditForm({ full_name: u.full_name || '', email: u.email || '' });
+  };
+
+  const handleEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editTarget) return;
+    const name = editForm.full_name.trim();
+    const email = editForm.email.trim().toLowerCase();
+    if (!name) return flash({ type: 'error', text: 'Informe o nome.' });
+    const emailChanged = email !== (editTarget.email || '').toLowerCase();
+    if (emailChanged && !window.confirm(`O login de ${name} passa a ser ${email} (a senha não muda). Confirmar?`)) return;
+
+    setEditing(true);
+    try {
+      let updated = editTarget;
+      if (name !== editTarget.full_name) updated = await UserService.update(editTarget.id, { full_name: name });
+      if (emailChanged) updated = await UserService.updateEmail(editTarget.id, email, editTarget.email);
+      setUsers((prev) => prev.map((x) => (x.id === updated.id ? updated : x)));
+      if (updated.id === me?.id) await refreshProfile();
+      flash({ type: 'success', text: `${updated.full_name || updated.email} atualizado.` });
+      setEditTarget(null);
+    } catch (err: any) {
+      flash({ type: 'error', text: err.message });
+    } finally {
+      setEditing(false);
+    }
+  };
+
+  const syncEmail = async (u: UserProfile, email: string) => {
+    if (!window.confirm(`Alterar o login de ${u.full_name || u.email}\nde ${u.email}\npara ${email}?\n\nA pessoa passa a entrar com o novo e-mail (a senha não muda).`)) return;
+    setSavingId(u.id);
+    try {
+      const updated = await UserService.updateEmail(u.id, email, u.email);
+      setUsers((prev) => prev.map((x) => (x.id === updated.id ? updated : x)));
+      flash({ type: 'success', text: `Login atualizado para ${email}.` });
+    } catch (err: any) {
+      flash({ type: 'error', text: err.message });
+    } finally {
+      setSavingId(null);
+    }
+  };
   const employeeMatches = useMemo(() => {
     const q = employeeQuery.trim().toLowerCase();
     if (!q || pickedEmployeeId) return [];
     return employees
-      .filter((e) => e.status !== 'desligado' && e.email && !existingEmails.has(e.email.toLowerCase()))
+      .filter((e) => e.status !== 'desligado' && e.email && !existingEmails.has(e.email.toLowerCase()) && !linkedEmployeeIds.has(e.id))
       .filter((e) =>
         [e.full_name, e.preferential_name, e.email, e.department].some((v) => v?.toLowerCase().includes(q))
       )
       .slice(0, 8);
-  }, [employees, employeeQuery, existingEmails, pickedEmployeeId]);
+  }, [employees, employeeQuery, existingEmails, linkedEmployeeIds, pickedEmployeeId]);
 
   const pickEmployee = (e: Employee) => {
     setPickedEmployeeId(e.id);
@@ -147,7 +203,7 @@ export const Users: React.FC = () => {
     e.preventDefault();
     setCreating(true);
     try {
-      let created = await UserService.create(form);
+      let created = await UserService.create({ ...form, employee_id: pickedEmployeeId });
       try {
         if (photoFile) created = await AvatarService.upload(created.id, photoFile);
         else if (photoPreview && !photoPreview.startsWith('blob:')) {
@@ -306,6 +362,18 @@ export const Users: React.FC = () => {
                           {u.id === me?.id && <span className="ml-2 text-[10px] font-bold text-blue-600">(você)</span>}
                         </div>
                         <div className="text-xs text-slate-500">{u.email}</div>
+                        {emailMismatch(u) && (
+                          <div className="mt-1 text-[11px] text-amber-700 flex flex-wrap items-center gap-x-2">
+                            <span>No cadastro de funcionários: <strong>{emailMismatch(u)}</strong></span>
+                            <button
+                              onClick={() => syncEmail(u, emailMismatch(u)!)}
+                              disabled={savingId === u.id}
+                              className="font-semibold text-blue-600 hover:underline disabled:opacity-50"
+                            >
+                              Usar este e-mail
+                            </button>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </td>
@@ -341,7 +409,13 @@ export const Users: React.FC = () => {
                       {u.is_active ? 'Ativo' : 'Inativo'}
                     </button>
                   </td>
-                  <td className="px-4 py-3 text-right">
+                  <td className="px-4 py-3 text-right whitespace-nowrap">
+                    <button
+                      onClick={() => openEdit(u)}
+                      className="inline-flex items-center gap-1 px-2.5 py-1.5 mr-2 border border-slate-300 hover:bg-slate-50 text-slate-700 rounded-lg text-xs font-semibold"
+                    >
+                      <Pencil className="w-3.5 h-3.5" /> Editar
+                    </button>
                     <button
                       onClick={() => {
                         setResetTarget(u);
@@ -525,6 +599,52 @@ export const Users: React.FC = () => {
               </form>
             )}
           </div>
+        </div>
+      )}
+
+      {/* Modal: editar usuário */}
+      {editTarget && (
+        <div className="fixed inset-0 z-50 bg-slate-900/50 flex items-center justify-center p-4">
+          <form onSubmit={handleEdit} className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-md w-full p-6 space-y-4 text-sm">
+            <div className="flex items-center justify-between border-b pb-3 border-slate-100">
+              <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                <Pencil className="w-5 h-5 text-blue-600" /> Editar usuário
+              </h3>
+              <button type="button" onClick={() => setEditTarget(null)} className="text-slate-400 hover:text-slate-600">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="flex items-center gap-3">
+              <Avatar src={editTarget.avatar_url} name={editForm.full_name} email={editForm.email} size={48} />
+              <span className="text-xs text-slate-500">Foto: clique no avatar na lista para trocar.</span>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 uppercase mb-1">Nome completo</label>
+              <input required value={editForm.full_name} onChange={(e) => setEditForm({ ...editForm, full_name: e.target.value })} className={inputClass} />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 uppercase mb-1">E-mail de login</label>
+              <input required type="email" value={editForm.email} onChange={(e) => setEditForm({ ...editForm, email: e.target.value })} className={inputClass} />
+              {emailMismatch(editTarget) && editForm.email.toLowerCase() !== emailMismatch(editTarget) && (
+                <button
+                  type="button"
+                  onClick={() => setEditForm({ ...editForm, email: emailMismatch(editTarget)! })}
+                  className="mt-1 text-[11px] text-blue-600 hover:underline"
+                >
+                  Usar o e-mail do cadastro de funcionários: {emailMismatch(editTarget)}
+                </button>
+              )}
+              <span className="text-[11px] text-slate-400 mt-1 block">Ao mudar o e-mail, a pessoa passa a entrar com o novo. A senha continua a mesma.</span>
+            </div>
+            <div className="flex justify-end gap-2">
+              <button type="button" onClick={() => setEditTarget(null)} className="px-4 py-2 border border-slate-300 rounded-lg text-xs font-semibold text-slate-700 hover:bg-slate-50">
+                Cancelar
+              </button>
+              <button type="submit" disabled={editing} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold disabled:opacity-50">
+                {editing ? 'Salvando...' : 'Salvar'}
+              </button>
+            </div>
+          </form>
         </div>
       )}
 

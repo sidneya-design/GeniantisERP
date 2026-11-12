@@ -50,6 +50,7 @@ export const ACTION_LABEL: Record<string, { label: string; cls: string }> = {
   logout: { label: 'Saiu', cls: 'bg-slate-100 text-slate-500 border-slate-200' },
   create_user: { label: 'Criou usuário', cls: 'bg-purple-50 text-purple-700 border-purple-200' },
   reset_password: { label: 'Redefiniu senha', cls: 'bg-amber-50 text-amber-700 border-amber-200' },
+  update_email: { label: 'Alterou login', cls: 'bg-purple-50 text-purple-700 border-purple-200' },
   password_change: { label: 'Trocou a senha', cls: 'bg-amber-50 text-amber-700 border-amber-200' },
   email_sent: { label: 'E-mail enviado', cls: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
   email_failed: { label: 'Falha no e-mail', cls: 'bg-rose-50 text-rose-700 border-rose-200' },

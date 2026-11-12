@@ -49,6 +49,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<any | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
+  const [profileLoading, setProfileLoading] = useState(false);
   const [isMockSession, setIsMockSession] = useState<boolean>(!isSupabaseConfigured);
 
   const syncParabensflowSSO = (email: string, role: UserRole) => {
@@ -64,6 +65,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const clearParabensflowSSO = () => clearParabensflowSession();
 
   const fetchProfile = async (userId: string, email: string) => {
+    setProfileLoading(true);
     try {
       const { data, error } = await supabase
         .from('profiles')
@@ -91,6 +93,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       syncParabensflowSSO(loadedProfile.email, loadedProfile.role);
     } catch (err) {
       console.error('Erro ao buscar perfil:', err);
+    } finally {
+      setProfileLoading(false);
     }
   };
 
@@ -203,6 +207,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const switchDevRole = (role: UserRole) => {
+    // Só no modo demonstração (sem Supabase): no sistema real o perfil vem do banco
+    if (isSupabaseConfigured) return;
     localStorage.setItem('geniantis_dev_role', role);
     const email = `${role}@geniantis.com`;
     setProfile(prev => prev ? { ...prev, role, email, full_name: `Usuário (${role.toUpperCase()})` } : null);
@@ -223,7 +229,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       value={{
         user,
         profile,
-        loading,
+        // Enquanto há sessão mas o perfil ainda não carregou, a tela fica em
+        // "carregando" (evita piscar "Acesso restrito" ao recarregar)
+        loading: loading || (!!user && !profile && profileLoading),
         signIn,
         signOut,
         switchDevRole,

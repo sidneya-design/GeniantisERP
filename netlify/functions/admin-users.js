@@ -83,6 +83,7 @@ async function criarUsuario(dados, cfg, admin) {
   const fullName = String(dados.full_name || '').trim();
   const role = dados.role;
   const password = String(dados.password || '');
+  const employeeId = dados.employee_id ? String(dados.employee_id) : null;
 
   if (!email || !email.includes('@')) return resposta(400, { error: 'Informe um e-mail válido.' });
   if (!fullName) return resposta(400, { error: 'Informe o nome do usuário.' });
@@ -114,7 +115,7 @@ async function criarUsuario(dados, cfg, admin) {
   const perfilRes = await fetch(`${cfg.url}/rest/v1/profiles?id=eq.${novo.id}`, {
     method: 'PATCH',
     headers: { ...h, Prefer: 'return=representation' },
-    body: JSON.stringify({ full_name: fullName, role, is_active: true })
+    body: JSON.stringify({ full_name: fullName, role, is_active: true, ...(employeeId ? { employee_id: employeeId } : {}) })
   });
   if (!perfilRes.ok) {
     return resposta(500, {
@@ -142,6 +143,43 @@ async function redefinirSenha(dados, cfg, admin) {
   return resposta(200, { message: 'Senha redefinida.' });
 }
 
+async function atualizarEmail(dados, cfg, admin) {
+  const id = String(dados.id || '');
+  const email = String(dados.email || '').trim().toLowerCase();
+  if (!id) return resposta(400, { error: 'Usuário não informado.' });
+  if (!email || !email.includes('@')) return resposta(400, { error: 'Informe um e-mail válido.' });
+
+  const h = headersServico(cfg.serviceKey);
+
+  // Login (Supabase Auth): já confirmado, sem e-mail de verificação
+  const authRes = await fetch(`${cfg.url}/auth/v1/admin/users/${encodeURIComponent(id)}`, {
+    method: 'PUT',
+    headers: h,
+    body: JSON.stringify({ email, email_confirm: true })
+  });
+  if (!authRes.ok) {
+    const msg = await erroSupabase(authRes);
+    const jaExiste = /already|registered|exists/i.test(msg);
+    return resposta(jaExiste ? 409 : 400, {
+      error: jaExiste ? 'Esse e-mail já é usado por outro usuário.' : `Não foi possível alterar o e-mail: ${msg}`
+    });
+  }
+
+  const perfilRes = await fetch(`${cfg.url}/rest/v1/profiles?id=eq.${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    headers: { ...h, Prefer: 'return=representation' },
+    body: JSON.stringify({ email })
+  });
+  if (!perfilRes.ok) {
+    return resposta(500, { error: `Login alterado, mas o perfil não foi atualizado: ${await erroSupabase(perfilRes)}` });
+  }
+  const [perfil] = await perfilRes.json();
+  await registrarLog(cfg, admin, 'update_email', `Alterou o login de ${dados.old_email || id} para ${email}`, {
+    user_id: id, de: dados.old_email || null, para: email
+  });
+  return resposta(200, { profile: perfil });
+}
+
 exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return resposta(200, {});
   if (event.httpMethod !== 'POST') return resposta(405, { error: 'Método não permitido.' });
@@ -158,6 +196,7 @@ exports.handler = async (event) => {
     const dados = JSON.parse(event.body || '{}');
     if (dados.action === 'create') return await criarUsuario(dados, cfg, admin);
     if (dados.action === 'reset_password') return await redefinirSenha(dados, cfg, admin);
+    if (dados.action === 'update_email') return await atualizarEmail(dados, cfg, admin);
     return resposta(400, { error: 'Ação desconhecida.' });
   } catch (err) {
     console.error('Erro na função admin-users:', err);

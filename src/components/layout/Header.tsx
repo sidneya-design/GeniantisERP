@@ -52,7 +52,7 @@ export const Header: React.FC = () => {
 
       <div className="flex items-center space-x-4">
         {/* Seletor de Perfil Rápido */}
-        {switchDevRole && (
+        {isMockSession && switchDevRole && (
           <div className="flex items-center text-xs space-x-1.5 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1">
             <span className="text-slate-500 font-medium">Perfil:</span>
             <select

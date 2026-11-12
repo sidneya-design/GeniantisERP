@@ -63,9 +63,21 @@ export const UserService = {
     return data as UserProfile;
   },
 
-  async create(input: { full_name: string; email: string; role: UserRole; password: string }): Promise<UserProfile> {
+  async create(input: { full_name: string; email: string; role: UserRole; password: string; employee_id?: string | null }): Promise<UserProfile> {
     const res = await callAdminFunction({ action: 'create', ...input });
     return res.profile as UserProfile;
+  },
+
+  /** Troca o e-mail de login (só Admin) */
+  async updateEmail(id: string, email: string, oldEmail?: string): Promise<UserProfile> {
+    const res = await callAdminFunction({ action: 'update_email', id, email, old_email: oldEmail });
+    return res.profile as UserProfile;
+  },
+
+  /** Usuário ligado a um funcionário (para avisar quando o e-mail do cadastro mudar) */
+  async findByEmployee(employeeId: string): Promise<UserProfile | null> {
+    const { data } = await supabase.from('profiles').select('*').eq('employee_id', employeeId).maybeSingle();
+    return (data as UserProfile) || null;
   },
 
   async resetPassword(id: string, password: string, email?: string): Promise<void> {
