@@ -39,10 +39,14 @@ export const Login: React.FC = () => {
   return (
     <div className="min-h-screen bg-slate-900 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-md text-center">
-        <div className="w-14 h-14 rounded-2xl bg-blue-600 flex items-center justify-center font-bold text-white text-2xl mx-auto shadow-lg shadow-blue-500/30">
-          G
+        <div className="mx-auto w-full max-w-sm bg-white rounded-2xl px-6 py-5 shadow-xl">
+          <img
+            src="/logo-geniantis.svg"
+            alt="Geniantis — Inteligência Coletiva"
+            className="w-full h-auto"
+          />
         </div>
-        <h2 className="mt-4 text-3xl font-extrabold text-white tracking-tight">
+        <h2 className="mt-5 text-xl font-bold text-white tracking-tight">
           Geniantis<span className="text-blue-400">ERP</span>
         </h2>
         <p className="mt-2 text-sm text-slate-400">
