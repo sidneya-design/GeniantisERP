@@ -6,6 +6,8 @@ import { MovementService } from '../services/movementService';
 import { Asset } from '../types/asset';
 import { Employee } from '../types/employee';
 import { Movement, MovementTermStatus, MovementType } from '../types/movement';
+import { useAuth } from '../contexts/AuthContext';
+import { loadTermTemplates, renderTermHtml } from '../lib/termTemplate';
 
 const getAssetDescription = (asset: Asset) => [asset.brand, asset.model].filter(Boolean).join(' ') || asset.category;
 
@@ -13,6 +15,7 @@ export const Movements: React.FC = () => {
   const [movements, setMovements] = useState<Movement[]>([]);
   const [assets, setAssets] = useState<Asset[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
+  const { profile } = useAuth();
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -162,40 +165,42 @@ export const Movements: React.FC = () => {
     }
   };
 
-  const printTerm = (movement: Movement) => {
+  const printTerm = async (movement: Movement) => {
+    // Abre a janela antes de carregar o modelo, para o navegador não bloquear o pop-up
     const printWindow = window.open('', '_blank', 'width=900,height=700');
     if (!printWindow) {
       setErrorMessage('Não foi possível abrir o termo. Verifique o bloqueador de pop-ups.');
       return;
     }
+    printWindow.document.write('<p style="font-family: Arial; color: #64748b; padding: 24px">Gerando termo…</p>');
 
-    const escapeHtml = (value: string) => value
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#039;');
-    const items = movement.items.map((item) => `<li><strong>${escapeHtml(item.patrimony)}</strong> — ${escapeHtml(item.description || 'Ativo')}</li>`).join('');
+    const templates = await loadTermTemplates();
+    const template = templates[movement.type === 'entrega' ? 'termo_entrega' : 'termo_devolucao'];
+    const employee = employees.find((item) => item.id === movement.employee_id);
+    const html = renderTermHtml(template, {
+      type: movement.type,
+      employee: {
+        full_name: employee?.full_name || movement.employee_name,
+        email: employee?.email,
+        role_title: employee?.role_title,
+        department: employee?.department,
+        unit: employee?.unit,
+        registration_number: employee?.registration_number,
+        cpf: employee?.cpf,
+      },
+      items: movement.items,
+      date: movement.movement_date,
+      notes: movement.notes,
+      responsible: profile?.full_name || profile?.email || '',
+    });
 
-    printWindow.document.write(`<!doctype html><html><head><title>Termo de ${movement.type === 'entrega' ? 'entrega' : 'devolução'}</title><style>
-      body { font-family: Arial, sans-serif; color: #1e293b; max-width: 800px; margin: 40px auto; line-height: 1.5; }
-      h1 { font-size: 22px; text-align: center; } h2 { font-size: 16px; margin-top: 28px; }
-      .meta { border: 1px solid #cbd5e1; padding: 16px; border-radius: 8px; } li { margin: 8px 0; }
-      .signatures { display: grid; grid-template-columns: 1fr 1fr; gap: 60px; margin-top: 80px; text-align: center; }
-      .line { border-top: 1px solid #334155; padding-top: 8px; }
-    </style></head><body>
-      <h1>TERMO DE ${movement.type === 'entrega' ? 'ENTREGA E RESPONSABILIDADE' : 'DEVOLUÇÃO DE ATIVOS'}</h1>
-      <div class="meta"><strong>Funcionário:</strong> ${escapeHtml(movement.employee_name)}<br><strong>Data:</strong> ${new Date(`${movement.movement_date}T12:00:00Z`).toLocaleDateString('pt-BR')}<br><strong>Status do termo:</strong> ${movement.term_status === 'assinado' ? 'Assinado' : 'Pendente'}</div>
-      <h2>Ativos relacionados</h2><ul>${items}</ul>
-      ${movement.notes ? `<h2>Observações</h2><p>${escapeHtml(movement.notes)}</p>` : ''}
-      <p>Declaro estar ciente das responsabilidades relacionadas aos ativos descritos neste termo.</p>
-      <div class="signatures"><div class="line">Funcionário</div><div class="line">Responsável pela movimentação</div></div>
-    </body></html>`);
+    printWindow.document.open();
+    printWindow.document.write(html);
     printWindow.document.close();
     setTimeout(() => {
       printWindow.focus();
       printWindow.print();
-    }, 250);
+    }, 400);
   };
 
   const statusLabel = (status: MovementTermStatus) => status === 'assinado' ? 'Termo Assinado' : 'Termo Pendente';

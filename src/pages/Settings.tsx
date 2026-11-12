@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Settings as SettingsIcon, Building2, Shield, Users, Save, CheckCircle2 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { TermTemplatesEditor } from '../components/settings/TermTemplatesEditor';
 
 export const Settings: React.FC = () => {
   const { profile } = useAuth();
@@ -114,6 +115,8 @@ export const Settings: React.FC = () => {
           </div>
         </div>
       </div>
+
+      <TermTemplatesEditor />
     </div>
   );
 };

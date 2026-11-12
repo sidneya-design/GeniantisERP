@@ -1149,3 +1149,10 @@ body.pdf-banner-mode .banner-preview-wrap {
 .bulk-column {
   display: none !important;
 }
+
+/* Usuário, "Sair" e "Modo Nuvem" no topo: o ERP já mostra o usuário e faz o logout */
+#userEmailBadge,
+#btnHeaderLogout,
+#statusBadge {
+  display: none !important;
+}
