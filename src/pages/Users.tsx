@@ -1,8 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { UserCog, Plus, X, KeyRound, RefreshCw, Search, AlertCircle, CheckCircle2, Copy } from 'lucide-react';
+import { UserCog, Plus, X, KeyRound, RefreshCw, Search, AlertCircle, CheckCircle2, Copy, Users as UsersIcon } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { UserProfile, UserRole } from '../types';
 import { ROLE_INFO, ROLE_ORDER, UserService, generatePassword } from '../services/userService';
+import { EmployeeService } from '../services/employeeService';
+import { Employee } from '../types/employee';
 
 type Feedback = { type: 'success' | 'error'; text: string } | null;
 
@@ -21,6 +23,9 @@ export const Users: React.FC = () => {
   const [form, setForm] = useState({ full_name: '', email: '', role: 'rh' as UserRole, password: '' });
   const [creating, setCreating] = useState(false);
   const [createdCredentials, setCreatedCredentials] = useState<{ email: string; password: string } | null>(null);
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [employeeQuery, setEmployeeQuery] = useState('');
+  const [pickedEmployeeId, setPickedEmployeeId] = useState<string | null>(null);
 
   const [resetTarget, setResetTarget] = useState<UserProfile | null>(null);
   const [newPassword, setNewPassword] = useState('');
@@ -81,9 +86,32 @@ export const Users: React.FC = () => {
   };
 
   const openCreate = () => {
-    setForm({ full_name: '', email: '', role: 'rh', password: generatePassword() });
+    setForm({ full_name: '', email: '', role: 'adm', password: generatePassword() });
     setCreatedCredentials(null);
+    setEmployeeQuery('');
+    setPickedEmployeeId(null);
     setShowCreate(true);
+    // Base geral: cadastro de funcionários do ERP
+    EmployeeService.getEmployees().then(setEmployees).catch(() => setEmployees([]));
+  };
+
+  // Funcionários que ainda não têm usuário no ERP (e não estão desligados)
+  const existingEmails = useMemo(() => new Set(users.map((u) => u.email?.toLowerCase())), [users]);
+  const employeeMatches = useMemo(() => {
+    const q = employeeQuery.trim().toLowerCase();
+    if (!q || pickedEmployeeId) return [];
+    return employees
+      .filter((e) => e.status !== 'desligado' && e.email && !existingEmails.has(e.email.toLowerCase()))
+      .filter((e) =>
+        [e.full_name, e.preferential_name, e.email, e.department].some((v) => v?.toLowerCase().includes(q))
+      )
+      .slice(0, 8);
+  }, [employees, employeeQuery, existingEmails, pickedEmployeeId]);
+
+  const pickEmployee = (e: Employee) => {
+    setPickedEmployeeId(e.id);
+    setEmployeeQuery(e.preferential_name || e.full_name);
+    setForm((f) => ({ ...f, full_name: e.full_name, email: e.email }));
   };
 
   const handleCreate = async (e: React.FormEvent) => {
@@ -293,6 +321,63 @@ export const Users: React.FC = () => {
               />
             ) : (
               <form onSubmit={handleCreate} className="space-y-4 text-sm">
+                <div className="bg-blue-50/60 border border-blue-100 rounded-xl p-3">
+                  <label className="block text-xs font-semibold text-blue-900 uppercase mb-1">
+                    Buscar no cadastro de funcionários
+                  </label>
+                  <div className="relative">
+                    <UsersIcon className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <input
+                      value={employeeQuery}
+                      onChange={(e) => {
+                        setEmployeeQuery(e.target.value);
+                        setPickedEmployeeId(null);
+                      }}
+                      placeholder="Digite o nome, e-mail ou departamento..."
+                      className={`${inputClass} pl-9 bg-white`}
+                      autoFocus
+                    />
+                    {pickedEmployeeId && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setPickedEmployeeId(null);
+                          setEmployeeQuery('');
+                          setForm((f) => ({ ...f, full_name: '', email: '' }));
+                        }}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                        title="Limpar"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    )}
+                    {employeeMatches.length > 0 && (
+                      <ul className="absolute z-10 mt-1 w-full bg-white border border-slate-200 rounded-lg shadow-lg max-h-64 overflow-y-auto">
+                        {employeeMatches.map((e) => (
+                          <li key={e.id}>
+                            <button
+                              type="button"
+                              onClick={() => pickEmployee(e)}
+                              className="w-full text-left px-3 py-2 hover:bg-blue-50"
+                            >
+                              <div className="font-semibold text-slate-800">{e.preferential_name || e.full_name}</div>
+                              <div className="text-xs text-slate-500">
+                                {e.email}{e.department ? ` · ${e.department}` : ''}
+                              </div>
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                  <span className="text-[11px] text-blue-800/70 mt-1 block">
+                    {pickedEmployeeId
+                      ? 'Nome e e-mail preenchidos a partir do cadastro.'
+                      : employeeQuery.trim() && employeeMatches.length === 0
+                        ? 'Nenhum funcionário encontrado (ou já tem usuário). Preencha os campos abaixo manualmente.'
+                        : 'Quem já tem usuário no ERP ou está desligado não aparece.'}
+                  </span>
+                </div>
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 uppercase mb-1">Nome completo</label>
                   <input
