@@ -1,8 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { UserCog, Plus, X, KeyRound, RefreshCw, Search, AlertCircle, CheckCircle2, Copy, Users as UsersIcon } from 'lucide-react';
+import { UserCog, Plus, X, KeyRound, RefreshCw, Search, AlertCircle, CheckCircle2, Copy, Users as UsersIcon, Camera } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { UserProfile, UserRole } from '../types';
-import { ROLE_INFO, ROLE_ORDER, UserService, generatePassword } from '../services/userService';
+import { ROLE_INFO, ROLE_ORDER, UserService, AvatarService, generatePassword } from '../services/userService';
+import { Avatar } from '../components/common/Avatar';
 import { EmployeeService } from '../services/employeeService';
 import { Employee } from '../types/employee';
 
@@ -12,7 +13,7 @@ const inputClass =
   'w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600';
 
 export const Users: React.FC = () => {
-  const { profile: me } = useAuth();
+  const { profile: me, refreshProfile } = useAuth();
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -26,6 +27,9 @@ export const Users: React.FC = () => {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [employeeQuery, setEmployeeQuery] = useState('');
   const [pickedEmployeeId, setPickedEmployeeId] = useState<string | null>(null);
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [uploadingId, setUploadingId] = useState<string | null>(null);
 
   const [resetTarget, setResetTarget] = useState<UserProfile | null>(null);
   const [newPassword, setNewPassword] = useState('');
@@ -90,6 +94,7 @@ export const Users: React.FC = () => {
     setCreatedCredentials(null);
     setEmployeeQuery('');
     setPickedEmployeeId(null);
+    choosePhoto(null);
     setShowCreate(true);
     // Base geral: cadastro de funcionários do ERP
     EmployeeService.getEmployees().then(setEmployees).catch(() => setEmployees([]));
@@ -112,13 +117,45 @@ export const Users: React.FC = () => {
     setPickedEmployeeId(e.id);
     setEmployeeQuery(e.preferential_name || e.full_name);
     setForm((f) => ({ ...f, full_name: e.full_name, email: e.email }));
+    // Reaproveita a foto do cadastro de funcionários, se houver
+    if (e.photo_url && !photoFile) setPhotoPreview(e.photo_url);
+  };
+
+  const choosePhoto = (file: File | null) => {
+    if (photoPreview?.startsWith('blob:')) URL.revokeObjectURL(photoPreview);
+    setPhotoFile(file);
+    setPhotoPreview(file ? URL.createObjectURL(file) : null);
+  };
+
+  // Troca a foto de um usuário já existente (clique no avatar da lista)
+  const changeUserPhoto = async (user: UserProfile, file: File | undefined) => {
+    if (!file) return;
+    setUploadingId(user.id);
+    try {
+      const updated = await AvatarService.upload(user.id, file);
+      setUsers((prev) => prev.map((u) => (u.id === updated.id ? updated : u)));
+      if (user.id === me?.id) await refreshProfile();
+      flash({ type: 'success', text: `Foto de ${updated.full_name || updated.email} atualizada.` });
+    } catch (err: any) {
+      flash({ type: 'error', text: err.message });
+    } finally {
+      setUploadingId(null);
+    }
   };
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     setCreating(true);
     try {
-      const created = await UserService.create(form);
+      let created = await UserService.create(form);
+      try {
+        if (photoFile) created = await AvatarService.upload(created.id, photoFile);
+        else if (photoPreview && !photoPreview.startsWith('blob:')) {
+          created = await UserService.update(created.id, { avatar_url: photoPreview });
+        }
+      } catch (err: any) {
+        flash({ type: 'error', text: `Usuário criado, mas a foto não foi salva: ${err.message}` });
+      }
       setUsers((prev) => [...prev.filter((u) => u.id !== created.id), created].sort((a, b) =>
         (a.full_name || '').localeCompare(b.full_name || '')
       ));
@@ -243,11 +280,34 @@ export const Users: React.FC = () => {
               {filtered.map((u) => (
                 <tr key={u.id} className={u.is_active ? '' : 'bg-slate-50/60'}>
                   <td className="px-4 py-3">
-                    <div className="font-semibold text-slate-800">
-                      {u.full_name || '—'}
-                      {u.id === me?.id && <span className="ml-2 text-[10px] font-bold text-blue-600">(você)</span>}
+                    <div className="flex items-center gap-3">
+                      <label
+                        className="relative group cursor-pointer shrink-0"
+                        title="Clique para trocar a foto"
+                      >
+                        <Avatar src={u.avatar_url} name={u.full_name} email={u.email} size={40} />
+                        <span className="absolute inset-0 rounded-full bg-slate-900/50 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                          {uploadingId === u.id ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Camera className="w-4 h-4" />}
+                        </span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          disabled={uploadingId === u.id}
+                          onChange={(e) => {
+                            changeUserPhoto(u, e.target.files?.[0]);
+                            e.target.value = '';
+                          }}
+                        />
+                      </label>
+                      <div className="min-w-0">
+                        <div className="font-semibold text-slate-800">
+                          {u.full_name || '—'}
+                          {u.id === me?.id && <span className="ml-2 text-[10px] font-bold text-blue-600">(você)</span>}
+                        </div>
+                        <div className="text-xs text-slate-500">{u.email}</div>
+                      </div>
                     </div>
-                    <div className="text-xs text-slate-500">{u.email}</div>
                   </td>
                   <td className="px-4 py-3">
                     <select
@@ -377,6 +437,29 @@ export const Users: React.FC = () => {
                         ? 'Nenhum funcionário encontrado (ou já tem usuário). Preencha os campos abaixo manualmente.'
                         : 'Quem já tem usuário no ERP ou está desligado não aparece.'}
                   </span>
+                </div>
+                <div className="flex items-center gap-4">
+                  <Avatar src={photoPreview} name={form.full_name} email={form.email} size={64} />
+                  <div className="space-y-1">
+                    <label className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-slate-300 hover:bg-slate-50 rounded-lg text-xs font-semibold text-slate-700 cursor-pointer">
+                      <Camera className="w-4 h-4" /> {photoPreview ? 'Trocar foto' : 'Adicionar foto'}
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => {
+                          choosePhoto(e.target.files?.[0] || null);
+                          e.target.value = '';
+                        }}
+                      />
+                    </label>
+                    {photoPreview && (
+                      <button type="button" onClick={() => choosePhoto(null)} className="block text-[11px] text-slate-500 hover:text-rose-600">
+                        Remover foto
+                      </button>
+                    )}
+                    <span className="block text-[11px] text-slate-400">Opcional. JPG, PNG ou WebP; é recortada em quadrado.</span>
+                  </div>
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 uppercase mb-1">Nome completo</label>

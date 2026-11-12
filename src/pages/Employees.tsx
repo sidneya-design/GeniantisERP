@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Avatar } from '../components/common/Avatar';
 import { 
   Users, 
   Plus, 
@@ -10,6 +11,7 @@ import {
   CheckCircle2, 
   ShieldAlert,
   Building2,
+  Camera,
   Calendar,
   Briefcase
 } from 'lucide-react';
@@ -74,7 +76,16 @@ export const Employees: React.FC = () => {
     birth_date: '',
     status: 'ativo' as EmployeeStatus,
     restricted_notes: '',
+    photo_url: '',
   });
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+
+  const choosePhoto = (file: File | null) => {
+    if (photoPreview?.startsWith('blob:')) URL.revokeObjectURL(photoPreview);
+    setPhotoFile(file);
+    setPhotoPreview(file ? URL.createObjectURL(file) : null);
+  };
 
   const loadData = async () => {
     setIsLoading(true);
@@ -108,7 +119,14 @@ export const Employees: React.FC = () => {
 
     try {
       const wasEditing = Boolean(editingEmployee);
-      await EmployeeService.saveEmployee({ ...formData, id: editingEmployee?.id });
+      const saved = await EmployeeService.saveEmployee({ ...formData, id: editingEmployee?.id });
+      if (photoFile) {
+        try {
+          await EmployeeService.uploadPhoto(saved.id, photoFile);
+        } catch (photoError: any) {
+          setErrorMessage(`Funcionário salvo, mas a foto não foi enviada: ${photoError.message}`);
+        }
+      }
       await loadData();
       setSuccessMessage(wasEditing ? 'Funcionário atualizado com sucesso.' : 'Funcionário cadastrado com sucesso.');
       setIsModalOpen(false);
@@ -132,7 +150,9 @@ export const Employees: React.FC = () => {
         birth_date: '',
         status: 'ativo',
         restricted_notes: '',
+        photo_url: '',
       });
+      choosePhoto(null);
     } catch (error: any) {
       setErrorMessage(error?.message || 'Não foi possível salvar o funcionário.');
     }
@@ -160,7 +180,10 @@ export const Employees: React.FC = () => {
       birth_date: employee.birth_date || '',
       status: employee.status,
       restricted_notes: employee.restricted_notes || '',
+      photo_url: employee.photo_url || '',
     });
+    choosePhoto(null);
+    setPhotoPreview(employee.photo_url || null);
     setIsDetailsOpen(false);
     setIsModalOpen(true);
   };
@@ -187,7 +210,9 @@ export const Employees: React.FC = () => {
       birth_date: '',
       status: 'ativo',
       restricted_notes: '',
+      photo_url: '',
     });
+    choosePhoto(null);
     setIsModalOpen(true);
   };
 
@@ -333,9 +358,7 @@ export const Employees: React.FC = () => {
                 <tr key={emp.id} className="hover:bg-slate-50/80 transition-colors">
                   <td className="px-6 py-4">
                     <div className="flex items-center space-x-3">
-                      <div className="w-9 h-9 rounded-full bg-blue-100 text-blue-700 font-bold flex items-center justify-center shrink-0">
-                        {emp.full_name[0]}
-                      </div>
+                      <Avatar src={emp.photo_url} name={emp.full_name} email={emp.email} size={36} />
                       <div>
                         <span className="font-semibold text-slate-800 block">
                           {emp.full_name}
@@ -411,6 +434,36 @@ export const Employees: React.FC = () => {
             </div>
 
             <form onSubmit={handleCreate} className="space-y-4 text-sm">
+              <div className="flex items-center gap-4">
+                <Avatar src={photoPreview} name={formData.full_name} email={formData.email} size={64} />
+                <div className="space-y-1">
+                  <label className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-slate-300 hover:bg-slate-50 rounded-lg text-xs font-semibold text-slate-700 cursor-pointer">
+                    <Camera className="w-4 h-4" /> {photoPreview ? 'Trocar foto' : 'Adicionar foto'}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        choosePhoto(e.target.files?.[0] || null);
+                        e.target.value = '';
+                      }}
+                    />
+                  </label>
+                  {photoPreview && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        choosePhoto(null);
+                        setFormData({ ...formData, photo_url: '' });
+                      }}
+                      className="block text-[11px] text-slate-500 hover:text-rose-600"
+                    >
+                      Remover foto
+                    </button>
+                  )}
+                  <span className="block text-[11px] text-slate-400">Opcional. A imagem é recortada em quadrado.</span>
+                </div>
+              </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">
@@ -645,9 +698,7 @@ export const Employees: React.FC = () => {
           <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-xl w-full p-6 space-y-4">
             <div className="flex items-center justify-between border-b pb-3 border-slate-100">
               <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-700 font-bold flex items-center justify-center text-lg">
-                  {selectedEmployee.full_name[0]}
-                </div>
+                <Avatar src={selectedEmployee.photo_url} name={selectedEmployee.full_name} email={selectedEmployee.email} size={48} />
                 <div>
                   <h3 className="text-lg font-bold text-slate-800">{selectedEmployee.full_name}</h3>
                   <span className="text-xs text-slate-500">{selectedEmployee.email}</span>

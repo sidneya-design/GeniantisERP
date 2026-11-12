@@ -1,5 +1,6 @@
 import { Employee } from '../types/employee';
 import { isSupabaseConfigured, supabase } from '../lib/supabase';
+import { resizeToSquare } from '../lib/image';
 
 const STORAGE_KEY = 'geniantis_employees';
 const PARABENSFLOW_KEY = 'parabensflow_local_preview_state';
@@ -158,6 +159,23 @@ export const EmployeeService = {
   },
 
   // Salvar ou atualizar funcionário
+  /** Envia a foto do funcionário (avatars/funcionarios/<id>/...) e grava em photo_url */
+  async uploadPhoto(employeeId: string, file: File): Promise<string> {
+    const blob = await resizeToSquare(file);
+    const path = `funcionarios/${employeeId}/${Date.now()}.webp`;
+    const { error } = await supabase.storage.from('avatars').upload(path, blob, { contentType: 'image/webp', upsert: false });
+    if (error) {
+      if (/bucket/i.test(error.message)) {
+        throw new Error('O armazenamento de fotos ainda não existe. Rode a migration 20261112000004_user_avatars.sql.');
+      }
+      throw new Error(`Falha ao enviar a foto: ${error.message}`);
+    }
+    const url = supabase.storage.from('avatars').getPublicUrl(path).data.publicUrl;
+    const { error: upErr } = await supabase.from('employees').update({ photo_url: url }).eq('id', employeeId);
+    if (upErr) throw new Error(upErr.message);
+    return url;
+  },
+
   async saveEmployee(employee: Omit<Employee, 'id' | 'created_at' | 'updated_at'> & { id?: string }): Promise<Employee> {
     if (isSupabaseConfigured) {
       const payload = this.toRow(employee);

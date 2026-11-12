@@ -19,6 +19,8 @@ import { Settings } from './pages/Settings';
 import { Users } from './pages/Users';
 import { Finance } from './pages/Finance';
 import { Logs } from './pages/Logs';
+import { MyProfile } from './pages/MyProfile';
+import { ResetPassword } from './pages/ResetPassword';
 
 export const App: React.FC = () => {
   return (
@@ -26,6 +28,7 @@ export const App: React.FC = () => {
       <BrowserRouter>
         <Routes>
           <Route path="/login" element={<Login />} />
+          <Route path="/redefinir-senha" element={<ResetPassword />} />
 
           <Route
             path="/"
@@ -124,6 +127,8 @@ export const App: React.FC = () => {
                 </ProtectedRoute>
               }
             />
+
+            <Route path="perfil" element={<MyProfile />} />
 
             <Route
               path="logs"

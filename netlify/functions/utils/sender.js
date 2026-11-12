@@ -242,4 +242,4 @@ async function processarEnvioAniversarios(origem = 'automatico') {
   };
 }
 
-module.exports = { processarEnvioAniversarios };
+module.exports = { processarEnvioAniversarios, enviarEmail };

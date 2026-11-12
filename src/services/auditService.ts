@@ -37,6 +37,8 @@ export const ENTITY_LABEL: Record<string, string> = {
   maintenance_orders: 'Manutenções',
   subscriptions: 'Assinaturas',
   subscription_assignments: 'Licenças atribuídas',
+  domains: 'Domínios',
+  domain_renewals: 'Renovações de domínio',
   aniversarios: 'E-mails de aniversário',
 };
 
@@ -48,6 +50,7 @@ export const ACTION_LABEL: Record<string, { label: string; cls: string }> = {
   logout: { label: 'Saiu', cls: 'bg-slate-100 text-slate-500 border-slate-200' },
   create_user: { label: 'Criou usuário', cls: 'bg-purple-50 text-purple-700 border-purple-200' },
   reset_password: { label: 'Redefiniu senha', cls: 'bg-amber-50 text-amber-700 border-amber-200' },
+  password_change: { label: 'Trocou a senha', cls: 'bg-amber-50 text-amber-700 border-amber-200' },
   email_sent: { label: 'E-mail enviado', cls: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
   email_failed: { label: 'Falha no e-mail', cls: 'bg-rose-50 text-rose-700 border-rose-200' },
 };
@@ -63,6 +66,9 @@ export const FIELD_LABEL: Record<string, string> = {
   service_name: 'Serviço', amount: 'Valor', periodicity: 'Periodicidade', total_licenses: 'Total de licenças',
   renewal_date: 'Renovação', billing_day: 'Dia de vencimento', auto_renew: 'Renovação automática', admin_email: 'Admin da conta',
   notes: 'Observações', employee_id: 'Funcionário',
+  domain: 'Domínio', registrar: 'Registradora', expiration_date: 'Vencimento', renewal_cost: 'Custo da renovação',
+  criticality: 'Criticidade', responsible: 'Responsável', backup_responsible: 'Substituto', services: 'Serviços',
+  new_expiration: 'Novo vencimento', previous_expiration: 'Vencimento anterior', renewed_at: 'Renovado em',
 };
 
 function sanitize(text: string) {

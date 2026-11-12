@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { resizeToSquare } from '../lib/image';
 import { UserProfile, UserRole } from '../types';
 
 export const ROLE_INFO: Record<UserRole, { label: string; description: string; color: string }> = {
@@ -51,7 +52,7 @@ export const UserService = {
     return (data || []) as UserProfile[];
   },
 
-  async update(id: string, changes: Partial<Pick<UserProfile, 'role' | 'is_active' | 'full_name'>>): Promise<UserProfile> {
+  async update(id: string, changes: Partial<Pick<UserProfile, 'role' | 'is_active' | 'full_name' | 'avatar_url'>>): Promise<UserProfile> {
     const { data, error } = await supabase
       .from('profiles')
       .update(changes)
@@ -69,6 +70,30 @@ export const UserService = {
 
   async resetPassword(id: string, password: string, email?: string): Promise<void> {
     await callAdminFunction({ action: 'reset_password', id, password, email });
+  },
+};
+
+export const AvatarService = {
+  /** Envia a foto, grava em profiles.avatar_url e devolve o perfil atualizado */
+  async upload(userId: string, file: File): Promise<UserProfile> {
+    const blob = await resizeToSquare(file);
+    const path = `${userId}/${Date.now()}.webp`;
+    const { error } = await supabase.storage.from('avatars').upload(path, blob, {
+      contentType: 'image/webp',
+      upsert: false,
+    });
+    if (error) {
+      if (/bucket/i.test(error.message)) {
+        throw new Error('O armazenamento de fotos ainda não existe. Rode a migration 20261112000004_user_avatars.sql.');
+      }
+      throw new Error(`Falha ao enviar a foto: ${error.message}`);
+    }
+    const { data } = supabase.storage.from('avatars').getPublicUrl(path);
+    return UserService.update(userId, { avatar_url: data.publicUrl });
+  },
+
+  async remove(userId: string): Promise<UserProfile> {
+    return UserService.update(userId, { avatar_url: null });
   },
 };
 

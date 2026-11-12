@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { Lock, Mail, Shield, AlertCircle } from 'lucide-react';
+import { Lock, Mail, Shield, AlertCircle, CheckCircle2, ArrowLeft } from 'lucide-react';
 import { LogoGeniantis } from '../components/common/LogoGeniantis';
 
 export const Login: React.FC = () => {
@@ -11,6 +11,30 @@ export const Login: React.FC = () => {
   const [password, setPassword] = useState(isMockSession ? 'admin123' : '');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const location = useLocation();
+  const [notice, setNotice] = useState<string | null>((location.state as any)?.notice ?? null);
+  const [mode, setMode] = useState<'login' | 'forgot'>('login');
+  const [forgotSent, setForgotSent] = useState<string | null>(null);
+
+  const handleForgot = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setLoading(true);
+    try {
+      const res = await fetch('/.netlify/functions/forgot-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Não foi possível enviar agora. Tente novamente.');
+      setForgotSent(data.message);
+    } catch (err: any) {
+      setError(err?.message || 'Não foi possível enviar agora. Tente novamente.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -41,6 +65,13 @@ export const Login: React.FC = () => {
 
       <div className="mt-8 mx-auto w-full max-w-md">
         <div className="bg-white py-8 px-6 shadow-lg shadow-slate-200/70 rounded-2xl sm:px-10 border border-slate-200">
+          {notice && !error && (
+            <div className="mb-4 bg-emerald-50 border border-emerald-200 text-emerald-800 px-4 py-3 rounded-xl text-sm flex items-start gap-2">
+              <CheckCircle2 className="w-5 h-5 shrink-0 text-emerald-600 mt-0.5" />
+              <span>{notice}</span>
+            </div>
+          )}
+
           {error && (
             <div className="mb-4 bg-rose-50 border border-rose-200 text-rose-700 px-4 py-3 rounded-xl text-sm flex items-start gap-2">
               <AlertCircle className="w-5 h-5 shrink-0 text-rose-500 mt-0.5" />
@@ -89,6 +120,57 @@ export const Login: React.FC = () => {
             </div>
           )}
 
+          {mode === 'forgot' ? (
+            <form className="space-y-5" onSubmit={handleForgot}>
+              <div>
+                <h3 className="text-base font-bold text-slate-800">Esqueci minha senha</h3>
+                <p className="text-sm text-slate-500 mt-1">
+                  Informe seu e-mail corporativo. Enviaremos um link para você criar uma nova senha.
+                </p>
+              </div>
+              {forgotSent ? (
+                <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 px-4 py-3 rounded-xl text-sm flex items-start gap-2">
+                  <CheckCircle2 className="w-5 h-5 shrink-0 text-emerald-600 mt-0.5" />
+                  <span>{forgotSent} Confira também a caixa de spam.</span>
+                </div>
+              ) : (
+                <>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                      <Mail className="w-5 h-5" />
+                    </div>
+                    <input
+                      type="email"
+                      required
+                      autoFocus
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="block w-full pl-10 pr-3 py-2.5 border border-slate-300 rounded-lg text-slate-900 text-sm focus:ring-2 focus:ring-blue-600 focus:border-blue-600"
+                      placeholder="nome@geniantis.com"
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="w-full flex justify-center py-2.5 px-4 rounded-lg shadow-md text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 transition-colors cursor-pointer"
+                  >
+                    {loading ? 'Enviando...' : 'Enviar link'}
+                  </button>
+                </>
+              )}
+              <button
+                type="button"
+                onClick={() => {
+                  setMode('login');
+                  setForgotSent(null);
+                  setError(null);
+                }}
+                className="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-800"
+              >
+                <ArrowLeft className="w-4 h-4" /> Voltar para o login
+              </button>
+            </form>
+          ) : (
           <form className="space-y-5" onSubmit={handleSubmit}>
             <div>
               <label className="block text-sm font-medium text-slate-700">
@@ -137,7 +219,22 @@ export const Login: React.FC = () => {
                 {loading ? 'Entrando...' : 'Acessar o Painel'}
               </button>
             </div>
+
+            <div className="text-center">
+              <button
+                type="button"
+                onClick={() => {
+                  setMode('forgot');
+                  setError(null);
+                  setNotice(null);
+                }}
+                className="text-sm font-medium text-blue-600 hover:text-blue-700 hover:underline"
+              >
+                Esqueci minha senha
+              </button>
+            </div>
           </form>
+          )}
         </div>
       </div>
     </div>

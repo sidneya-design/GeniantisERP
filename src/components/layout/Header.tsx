@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { Avatar } from '../common/Avatar';
 import { Bell, LogOut, UserCircle2, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { UserRole } from '../../types';
 import { getDefaultRouteForRole } from '../../lib/permissions';
@@ -114,7 +115,9 @@ export const Header: React.FC = () => {
               </span>
             </div>
           </div>
-          <UserCircle2 className="w-9 h-9 text-slate-400" />
+          <Link to="/perfil" title="Meu Perfil" className="rounded-full ring-2 ring-transparent hover:ring-blue-300 transition">
+            <Avatar src={profile?.avatar_url} name={profile?.full_name} email={profile?.email} size={36} />
+          </Link>
           <button
             onClick={signOut}
             className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"

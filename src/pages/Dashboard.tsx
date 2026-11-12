@@ -18,8 +18,10 @@ import { EmployeeService } from '../services/employeeService';
 import { AssetService } from '../services/assetService';
 import { MovementService } from '../services/movementService';
 import {
-  SubscriptionService, costInMonth, currentMonth, todayISO, brl, formatMonth,
+  SubscriptionService, currentMonth, todayISO, brl, formatMonth,
 } from '../services/subscriptionService';
+import { DomainService, daysToExpire } from '../services/domainService';
+import { CATEGORY_LABEL, CATEGORY_ORDER, expensesInMonth, loadFinanceData, totalsByCategory } from '../lib/finance';
 
 type Metric = {
   module: ModuleKey;
@@ -45,7 +47,8 @@ export const Dashboard: React.FC = () => {
   const [assets, setAssets] = useState({ inUse: 0, total: 0, available: 0, maintenance: 0 });
   const [movements, setMovements] = useState({ month: 0, pendingTerms: 0 });
   const [licenses, setLicenses] = useState({ used: 0, total: 0, renewSoon: [] as { name: string; days: number }[] });
-  const [finance, setFinance] = useState({ licenses: 0, maintenance: 0 });
+  const [finance, setFinance] = useState({ total: 0, byCategory: totalsByCategory([]) });
+  const [domains, setDomains] = useState({ active: 0, expiring: [] as { name: string; days: number }[] });
 
   useEffect(() => {
     let active = true;
@@ -109,17 +112,28 @@ export const Dashboard: React.FC = () => {
         .catch((e) => console.error('Dashboard (assinaturas):', e));
     }
 
-    if (canAccess('finance')) {
-      SubscriptionService.financeData()
-        .then(({ subscriptions, maintenances }) => {
+    if (canAccess('domains')) {
+      DomainService.list()
+        .then((list) => {
           if (!active) return;
-          const date = (m: typeof maintenances[number]) => (m.status === 'concluida' && m.completed_at ? m.completed_at : m.opened_at);
-          setFinance({
-            licenses: subscriptions.reduce((s, sub) => s + costInMonth(sub, month), 0),
-            maintenance: maintenances
-              .filter((m) => date(m).slice(0, 7) === month.slice(0, 7))
-              .reduce((s, m) => s + (m.cost || 0), 0),
+          const act = list.filter((d) => d.status === 'ativo');
+          setDomains({
+            active: act.length,
+            expiring: act
+              .map((d) => ({ name: d.domain, days: daysToExpire(d) }))
+              .filter((d): d is { name: string; days: number } => d.days !== null && d.days <= 30)
+              .sort((a, b) => a.days - b.days),
           });
+        })
+        .catch((e) => console.error('Dashboard (domínios):', e));
+    }
+
+    if (canAccess('finance')) {
+      loadFinanceData()
+        .then((raw) => {
+          if (!active) return;
+          const items = expensesInMonth(raw, month);
+          setFinance({ total: items.reduce((s, i) => s + i.amount, 0), byCategory: totalsByCategory(items) });
         })
         .catch((e) => console.error('Dashboard (financeiro):', e));
     }
@@ -170,8 +184,10 @@ export const Dashboard: React.FC = () => {
     {
       module: 'finance',
       title: `Gastos de ${formatMonth(currentMonth())}`,
-      value: brl(finance.licenses + finance.maintenance),
-      detail: `Licenças ${brl(finance.licenses)} • Manutenções ${brl(finance.maintenance)}`,
+      value: brl(finance.total),
+      detail: CATEGORY_ORDER.filter((c) => finance.byCategory[c] > 0)
+        .map((c) => `${CATEGORY_LABEL[c]} ${brl(finance.byCategory[c])}`)
+        .join(' • ') || 'Nenhum gasto neste mês',
       icon: Wallet,
       color: 'text-teal-600 bg-teal-50 border-teal-100',
       link: '/financeiro',
@@ -179,8 +195,8 @@ export const Dashboard: React.FC = () => {
     {
       module: 'domains',
       title: 'Domínios Monitorados',
-      value: '0',
-      detail: 'Nenhum domínio cadastrado',
+      value: String(domains.active),
+      detail: domains.expiring.length ? `${domains.expiring.length} vence(m) em até 30 dias` : 'Nenhum vencimento próximo',
       icon: Globe,
       color: 'text-amber-600 bg-amber-50 border-amber-100',
       link: '/dominios',
@@ -210,13 +226,18 @@ export const Dashboard: React.FC = () => {
       link: '/assinaturas',
       text: `${r.name} renova ${r.days === 0 ? 'hoje' : `em ${r.days} dia(s)`}`,
     })),
+    ...domains.expiring.map((d) => ({
+      module: 'domains' as ModuleKey,
+      link: '/dominios',
+      text: d.days < 0 ? `Domínio ${d.name} está vencido` : `Domínio ${d.name} vence ${d.days === 0 ? 'hoje' : `em ${d.days} dia(s)`}`,
+    })),
     ...(licenses.total > 0 && licenses.used >= licenses.total
       ? [{ module: 'subscriptions' as ModuleKey, link: '/assinaturas', text: 'Todas as licenças estão em uso' }]
       : []),
   ].filter((a) => canAccess(a.module));
 
   // O quadro de alertas só aparece para quem vê algum módulo que gera alerta
-  const showAlerts = (['movements', 'assets', 'subscriptions'] as ModuleKey[]).some((m) => canAccess(m));
+  const showAlerts = (['movements', 'assets', 'subscriptions', 'domains'] as ModuleKey[]).some((m) => canAccess(m));
 
   return (
     <div className="space-y-6">

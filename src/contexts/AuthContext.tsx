@@ -13,6 +13,7 @@ interface AuthContextType {
   switchDevRole?: (role: UserRole) => void;
   canAccess: (module: ModuleKey) => boolean;
   isMockSession: boolean;
+  refreshProfile: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -208,6 +209,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     syncParabensflowSSO(email, role);
   };
 
+  const refreshProfile = async () => {
+    if (isSupabaseConfigured && user?.id) await fetchProfile(user.id, user.email || '');
+  };
+
   const canAccess = (module: ModuleKey) => {
     if (!profile) return false;
     return canAccessModule(profile.role, module);
@@ -224,6 +229,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         switchDevRole,
         canAccess,
         isMockSession,
+        refreshProfile,
       }}
     >
       {children}
