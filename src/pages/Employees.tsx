@@ -45,6 +45,8 @@ function isValidCpf(value: string): boolean {
 
 export const Employees: React.FC = () => {
   const { profile } = useAuth();
+  // CPF, endereço e contato de emergência: só Admin, ADM e RH
+  const canSeePrivate = ['admin', 'adm', 'rh'].includes(profile?.role || '');
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterDept, setFilterDept] = useState('todos');
@@ -112,14 +114,14 @@ export const Employees: React.FC = () => {
       return;
     }
 
-    if (formData.cpf && !isValidCpf(formData.cpf)) {
+    if (canSeePrivate && formData.cpf && !isValidCpf(formData.cpf)) {
       alert('Informe um CPF válido.');
       return;
     }
 
     try {
       const wasEditing = Boolean(editingEmployee);
-      const saved = await EmployeeService.saveEmployee({ ...formData, id: editingEmployee?.id });
+      const saved = await EmployeeService.saveEmployee({ ...formData, id: editingEmployee?.id }, { includePrivate: canSeePrivate });
       if (photoFile) {
         try {
           await EmployeeService.uploadPhoto(saved.id, photoFile);
@@ -519,6 +521,8 @@ export const Employees: React.FC = () => {
                   />
                 </div>
 
+                {canSeePrivate && (
+                <>
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">
                     CPF
@@ -585,6 +589,9 @@ export const Employees: React.FC = () => {
                     className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-600"
                   />
                 </div>
+
+                </>
+                )}
 
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">
@@ -729,6 +736,7 @@ export const Employees: React.FC = () => {
                 <span className="text-slate-400 block">Gestor:</span>
                 <span className="font-semibold text-slate-800">{selectedEmployee.manager || 'Diretoria'}</span>
               </div>
+              {canSeePrivate && (
               <div>
                 <span className="text-slate-400 block">Contato emergencial:</span>
                 <span className="font-semibold text-slate-800">
@@ -737,6 +745,7 @@ export const Employees: React.FC = () => {
                   {selectedEmployee.emergency_contact_phone ? ` · ${selectedEmployee.emergency_contact_phone}` : ''}
                 </span>
               </div>
+              )}
               <div>
                 <span className="text-slate-400 block">Admissão:</span>
                 <span className="font-semibold text-slate-800">

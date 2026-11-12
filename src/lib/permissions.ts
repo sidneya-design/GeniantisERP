@@ -16,25 +16,25 @@ export const ROLE_PERMISSIONS: Record<UserRole, Record<ModuleKey, ModulePermissi
     logs: { canView: true, canEdit: false, canDelete: false },
     settings: { canView: true, canEdit: true, canDelete: true },
   },
-  // ADM: Vê tudo menos os domínios e configurações
+  // ADM: Vê tudo menos Configurações; Ativos, Manutenções e Domínios só leitura
   adm: {
     overview: { canView: true, canEdit: true, canDelete: false },
     employees: { canView: true, canEdit: true, canDelete: false },
-    assets: { canView: true, canEdit: true, canDelete: false },
+    assets: { canView: true, canEdit: false, canDelete: false },
     movements: { canView: true, canEdit: true, canDelete: false },
-    maintenance: { canView: true, canEdit: true, canDelete: false },
+    maintenance: { canView: true, canEdit: false, canDelete: false },
     subscriptions: { canView: true, canEdit: true, canDelete: false },
-    domains: { canView: false, canEdit: false, canDelete: false },
+    domains: { canView: true, canEdit: false, canDelete: false },
     birthdays: { canView: true, canEdit: true, canDelete: false },
     reports: { canView: true, canEdit: false, canDelete: false },
     finance: { canView: true, canEdit: false, canDelete: false },
     logs: { canView: false, canEdit: false, canDelete: false },
     settings: { canView: false, canEdit: false, canDelete: false },
   },
-  // TI: Vê Visão Geral, Ativos de TI, Entrega e Devoluções, Manutenções, Domínios e Renovações
+  // TI: Vê Visão Geral, Funcionários (sem dados pessoais), Ativos de TI, Entrega e Devoluções, Manutenções, Domínios e Renovações
   ti: {
     overview: { canView: true, canEdit: false, canDelete: false },
-    employees: { canView: false, canEdit: false, canDelete: false },
+    employees: { canView: true, canEdit: true, canDelete: false },
     assets: { canView: true, canEdit: true, canDelete: false },
     movements: { canView: true, canEdit: true, canDelete: false },
     maintenance: { canView: true, canEdit: true, canDelete: false },

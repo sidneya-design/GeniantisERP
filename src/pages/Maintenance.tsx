@@ -1,3 +1,4 @@
+import { usePermission } from '../lib/usePermission';
 import React, { useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, CheckCircle2, Clock, Plus, ShieldAlert, Wrench, X } from 'lucide-react';
 import { AssetService } from '../services/assetService';
@@ -20,6 +21,7 @@ const statusClass: Record<MaintenanceStatus, string> = {
 };
 
 export const Maintenance: React.FC = () => {
+  const { canEdit } = usePermission('maintenance');
   const [maintenances, setMaintenances] = useState<MaintenanceRecord[]>([]);
   const [assets, setAssets] = useState<Asset[]>([]);
   const [filterStatus, setFilterStatus] = useState<'todos' | MaintenanceStatus>('todos');
@@ -195,7 +197,7 @@ export const Maintenance: React.FC = () => {
       {completionModal}
       <div className="flex flex-col md:flex-row md:items-center justify-between bg-white p-6 rounded-2xl border border-slate-200 shadow-xs">
         <div><h2 className="text-2xl font-bold text-slate-800">Manutenções de Equipamentos</h2><p className="text-slate-500 text-sm mt-1">Controle de chamados, assistências técnicas, custos e previsão de retorno.</p></div>
-        <button type="button" onClick={openModal} className="mt-4 md:mt-0 inline-flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-semibold shadow-xs transition-colors"><Plus className="w-4 h-4" /> Registrar Chamado</button>
+        {canEdit && (<button type="button" onClick={openModal} className="mt-4 md:mt-0 inline-flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-semibold shadow-xs transition-colors"><Plus className="w-4 h-4" /> Registrar Chamado</button>)}
       </div>
 
       {errorMessage && <div className="bg-rose-50 border border-rose-200 text-rose-800 rounded-xl px-4 py-3 text-sm flex items-start gap-2"><ShieldAlert className="w-5 h-5 shrink-0 text-rose-600" /><span>{errorMessage}</span></div>}
@@ -211,7 +213,7 @@ export const Maintenance: React.FC = () => {
           <p className="text-xs text-slate-600 bg-slate-50 p-3 rounded-lg border border-slate-100"><strong>Defeito relatado:</strong> {item.issue}</p>
           <div className="text-xs space-y-1 text-slate-600 border-t pt-3 border-slate-100"><div className="flex justify-between gap-3"><span className="text-slate-500">Responsável / Assistência:</span><span className="font-medium text-slate-800 text-right">{item.provider || 'Não informado'}</span></div><div className="flex justify-between"><span className="text-slate-500">Abertura:</span><span className="font-medium text-slate-800">{new Date(`${item.opened_at}T12:00:00Z`).toLocaleDateString('pt-BR')}</span></div><div className="flex justify-between"><span className="text-slate-500">Previsão:</span><span className="font-semibold text-blue-700">{item.forecast_date ? new Date(`${item.forecast_date}T12:00:00Z`).toLocaleDateString('pt-BR') : 'Não informada'}</span></div>{item.cost !== null && item.cost !== undefined && <div className="flex justify-between"><span className="text-slate-500">Custo:</span><span className="font-semibold text-slate-800">{item.cost.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span></div>}</div>
           {item.custody_note && <div className="text-[11px] text-slate-500 italic border-t pt-2 border-slate-100">🛡️ {item.custody_note}</div>}
-          <div className="flex flex-wrap justify-end gap-2 border-t pt-3 border-slate-100">{item.invoice_file_path && <button type="button" onClick={() => openInvoice(item)} className="px-3 py-1.5 text-xs font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg">Nota Fiscal PDF</button>}{item.status === 'em_andamento' && <><button type="button" onClick={() => handleStatus(item, 'cancelada')} className="px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-lg">Cancelar</button><button type="button" onClick={() => handleStatus(item, 'baixado')} className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-rose-700 bg-rose-50 hover:bg-rose-100 rounded-lg"><AlertTriangle className="w-3.5 h-3.5" /> Dar baixa por perda</button><button type="button" onClick={() => openCompletionModal(item)} className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-lg"><CheckCircle2 className="w-3.5 h-3.5" /> Concluir manutenção</button></>}</div>
+          <div className="flex flex-wrap justify-end gap-2 border-t pt-3 border-slate-100">{item.invoice_file_path && <button type="button" onClick={() => openInvoice(item)} className="px-3 py-1.5 text-xs font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg">Nota Fiscal PDF</button>}{canEdit && item.status === 'em_andamento' && <><button type="button" onClick={() => handleStatus(item, 'cancelada')} className="px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-lg">Cancelar</button><button type="button" onClick={() => handleStatus(item, 'baixado')} className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-rose-700 bg-rose-50 hover:bg-rose-100 rounded-lg"><AlertTriangle className="w-3.5 h-3.5" /> Dar baixa por perda</button><button type="button" onClick={() => openCompletionModal(item)} className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-lg"><CheckCircle2 className="w-3.5 h-3.5" /> Concluir manutenção</button></>}</div>
         </div>)}
         {!isLoading && filteredMaintenances.length === 0 && <div className="md:col-span-2 bg-white rounded-2xl border border-dashed border-slate-300 p-10 text-center text-sm text-slate-500"><AlertTriangle className="w-5 h-5 mx-auto mb-2 text-slate-400" />Nenhuma manutenção cadastrada.</div>}
       </div>

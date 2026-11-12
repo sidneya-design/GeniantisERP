@@ -11,24 +11,6 @@ export const Header: React.FC = () => {
   const navigate = useNavigate();
   const [showNotifications, setShowNotifications] = useState(false);
 
-  const roleColors: Record<UserRole, string> = {
-    admin: 'bg-purple-100 text-purple-800 border-purple-200',
-    adm: 'bg-emerald-100 text-emerald-800 border-emerald-200',
-    ti: 'bg-blue-100 text-blue-800 border-blue-200',
-    rh: 'bg-pink-100 text-pink-800 border-pink-200',
-    financeiro: 'bg-amber-100 text-amber-800 border-amber-200',
-    consulta: 'bg-slate-100 text-slate-800 border-slate-200',
-  };
-
-  const roleLabels: Record<UserRole, string> = {
-    admin: 'Admin (Total)',
-    adm: 'ADM (Sem Domínios/Config)',
-    ti: 'TI (Ativos, Entregas, Manut., Domínios)',
-    rh: 'RH (Visão Geral, Funcionários, Aniver.)',
-    financeiro: 'Financeiro (Assinaturas e Relatórios)',
-    consulta: 'Consulta (Somente Leitura)',
-  };
-
   const handleRoleChange = (newRole: UserRole) => {
     if (switchDevRole) {
       switchDevRole(newRole);
@@ -104,15 +86,6 @@ export const Header: React.FC = () => {
           <div className="text-right hidden sm:block">
             <div className="text-sm font-semibold text-slate-800">
               {profile?.full_name || 'Usuário'}
-            </div>
-            <div className="flex items-center justify-end mt-0.5">
-              <span
-                className={`text-[11px] font-semibold px-2 py-0.5 rounded-full border ${
-                  profile?.role ? roleColors[profile.role] : 'bg-slate-100 text-slate-700'
-                }`}
-              >
-                {profile?.role ? roleLabels[profile.role] : 'Carregando...'}
-              </span>
             </div>
           </div>
           <Link to="/perfil" title="Meu Perfil" className="rounded-full ring-2 ring-transparent hover:ring-blue-300 transition">

@@ -4,8 +4,8 @@ import { UserProfile, UserRole } from '../types';
 
 export const ROLE_INFO: Record<UserRole, { label: string; description: string; color: string }> = {
   admin: { label: 'Administrador', description: 'Acesso total, incluindo Configurações e Usuários', color: 'bg-purple-100 text-purple-800 border-purple-200' },
-  adm: { label: 'ADM', description: 'Tudo, menos Domínios e Configurações', color: 'bg-blue-100 text-blue-800 border-blue-200' },
-  ti: { label: 'TI', description: 'Ativos, Entregas, Manutenções e Domínios', color: 'bg-cyan-100 text-cyan-800 border-cyan-200' },
+  adm: { label: 'ADM', description: 'Tudo, menos Configurações; Ativos, Manutenções e Domínios só para consulta', color: 'bg-blue-100 text-blue-800 border-blue-200' },
+  ti: { label: 'TI', description: 'Funcionários, Ativos, Entregas, Manutenções e Domínios', color: 'bg-cyan-100 text-cyan-800 border-cyan-200' },
   rh: { label: 'RH', description: 'Visão Geral, Funcionários e Aniversariantes', color: 'bg-emerald-100 text-emerald-800 border-emerald-200' },
   financeiro: { label: 'Financeiro', description: 'Assinaturas e consulta de ativos e domínios', color: 'bg-amber-100 text-amber-800 border-amber-200' },
   consulta: { label: 'Consulta', description: 'Somente leitura, sem editar nada', color: 'bg-slate-100 text-slate-700 border-slate-200' },

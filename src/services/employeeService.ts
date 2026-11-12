@@ -217,7 +217,11 @@ export const EmployeeService = {
     return url;
   },
 
-  async saveEmployee(employee: Omit<Employee, 'id' | 'created_at' | 'updated_at'> & { id?: string }): Promise<Employee> {
+  async saveEmployee(
+    employee: Omit<Employee, 'id' | 'created_at' | 'updated_at'> & { id?: string },
+    options: { includePrivate?: boolean } = {}
+  ): Promise<Employee> {
+    const includePrivate = options.includePrivate ?? true;
     if (isSupabaseConfigured) {
       const { publicPart, privatePart } = splitPrivate(this.toRow(employee));
       const query = employee.id
@@ -226,8 +230,10 @@ export const EmployeeService = {
       const { data, error } = await query.select(PUBLIC_COLUMNS).single();
       if (error) throw error;
 
-      // Dados pessoais na tabela própria (só Admin, ADM e RH conseguem gravar)
+      // Dados pessoais na tabela própria (só Admin, ADM e RH conseguem gravar).
+      // Perfis sem acesso (TI) não enviam nada, para não apagar o que existe.
       const saved = data as any;
+      if (!includePrivate) return this.mapRow(saved);
       const { error: privErr } = await supabase
         .from('employee_private')
         .upsert({ employee_id: saved.id, ...privatePart }, { onConflict: 'employee_id' });
