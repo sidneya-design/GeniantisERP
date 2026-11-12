@@ -21,8 +21,8 @@ function hashPassword(password) {
 // Em alguns sites o contexto automático (siteID/token injetados pela Netlify)
 // não chega até a function; nesse caso configuramos manualmente via env vars.
 function obterStore(nome) {
-  const siteID = process.env.NETLIFY_SITE_ID;
-  const token = process.env.NETLIFY_BLOBS_TOKEN;
+  const siteID = (process.env.NETLIFY_SITE_ID || '').trim();
+  const token = (process.env.NETLIFY_BLOBS_TOKEN || '').trim();
 
   if (siteID && token) {
     return getStore({ name: nome, siteID, token });
