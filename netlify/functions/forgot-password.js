@@ -4,6 +4,8 @@
 // quem tem conta no ERP.
 
 const { enviarEmail } = require('./utils/sender');
+const { conectarBlobs } = require('./utils/auth');
+const { permitir, ipDaRequisicao } = require('./utils/rateLimit');
 
 const headers = {
   'Access-Control-Allow-Origin': '*',
@@ -15,9 +17,6 @@ const headers = {
 const MENSAGEM = 'Se o e-mail estiver cadastrado, você vai receber um link para criar uma nova senha em alguns minutos.';
 const PERFIS_COM_LOGIN = ['admin', 'adm', 'ti', 'rh'];
 
-// Freio simples contra abuso: 1 pedido por e-mail a cada 2 min (por instância)
-const ultimosPedidos = new Map();
-
 function resposta(statusCode, body) {
   return { statusCode, headers, body: JSON.stringify(body) };
 }
@@ -27,6 +26,7 @@ function escapeHtml(t) {
 }
 
 exports.handler = async (event) => {
+  conectarBlobs(event);
   if (event.httpMethod === 'OPTIONS') return resposta(200, {});
   if (event.httpMethod !== 'POST') return resposta(405, { error: 'Método não permitido.' });
 
@@ -40,9 +40,12 @@ exports.handler = async (event) => {
     return resposta(400, { error: 'Informe um e-mail válido.' });
   }
 
-  const agora = Date.now();
-  if (agora - (ultimosPedidos.get(email) || 0) < 120000) return resposta(200, { message: MENSAGEM });
-  ultimosPedidos.set(email, agora);
+  // Freio contra abuso (lotar a caixa de alguém): 3 pedidos/hora por e-mail
+  // e 10/hora por IP. A resposta é sempre a mesma para não revelar nada.
+  const HORA = 3600000;
+  const ipOk = await permitir(`forgot:ip:${ipDaRequisicao(event)}`, 10, HORA);
+  const emailOk = ipOk && (await permitir(`forgot:email:${email}`, 3, HORA));
+  if (!ipOk || !emailOk) return resposta(200, { message: MENSAGEM });
 
   const url = (process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '').replace(/\/+$/, '');
   const chave = (process.env.SUPABASE_SERVICE_ROLE_KEY || '').trim();

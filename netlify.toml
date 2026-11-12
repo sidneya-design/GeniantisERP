@@ -21,3 +21,14 @@
 
 [build.environment]
   NODE_VERSION = "20"
+
+# Cabeçalhos de segurança em todo o site
+[[headers]]
+  for = "/*"
+  [headers.values]
+    # Só o próprio site pode exibir o ERP em iframe (o painel de aniversariantes usa isso)
+    X-Frame-Options = "SAMEORIGIN"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=(), payment=(), usb=()"
+

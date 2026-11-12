@@ -1,4 +1,5 @@
 const { hashPassword, inicializarUsuariosSeNecessario, gerarToken, obterStore, conectarBlobs } = require('./utils/auth');
+const { permitir, ipDaRequisicao } = require('./utils/rateLimit');
 
 exports.handler = async (event, context) => {
   conectarBlobs(event);
@@ -18,6 +19,25 @@ exports.handler = async (event, context) => {
       statusCode: 405,
       headers,
       body: JSON.stringify({ error: `Método ${event.httpMethod} não permitido.` })
+    };
+  }
+
+  // O painel de aniversariantes é acessado pelo login do ERP (SSO). O login
+  // próprio só funciona se PAINEL_LOGIN_PROPRIO=true estiver na Netlify.
+  if (process.env.PAINEL_LOGIN_PROPRIO !== 'true') {
+    return {
+      statusCode: 403,
+      headers,
+      body: JSON.stringify({ error: 'Acesse o painel pelo GeniantisERP.' })
+    };
+  }
+
+  // Limite de tentativas: 10 por 15 minutos por IP
+  if (!(await permitir(`login:ip:${ipDaRequisicao(event)}`, 10, 15 * 60000))) {
+    return {
+      statusCode: 429,
+      headers,
+      body: JSON.stringify({ error: 'Muitas tentativas. Aguarde alguns minutos.' })
     };
   }
 

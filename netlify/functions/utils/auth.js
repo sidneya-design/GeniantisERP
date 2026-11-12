@@ -123,7 +123,10 @@ function validarToken(authHeader) {
     const segredo = obterSegredoToken();
     const assinaturaEsperada = crypto.createHmac('sha256', segredo).update(payloadStr).digest('hex');
     
-    if (assinaturaRecebida !== assinaturaEsperada) {
+    // Comparação em tempo constante (evita descobrir a assinatura pelo tempo de resposta)
+    const recebida = Buffer.from(String(assinaturaRecebida), 'utf8');
+    const esperada = Buffer.from(assinaturaEsperada, 'utf8');
+    if (recebida.length !== esperada.length || !crypto.timingSafeEqual(recebida, esperada)) {
       return null;
     }
     

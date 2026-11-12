@@ -77,6 +77,44 @@ const INITIAL_EMPLOYEES: Employee[] = [
   },
 ];
 
+// Colunas da tabela employees. Os dados pessoais (CPF, endereço, contato de
+// emergência, observações restritas) ficam em employee_private.
+const PUBLIC_COLUMNS =
+  'id, registration_number, full_name, preferential_name, email, phone, department_id, department_name, role_title, ' +
+  'unit_id, unit_name, manager, admission_date, termination_date, birth_date, status, photo_url, created_at, updated_at';
+
+type PrivateData = {
+  employee_id: string;
+  cpf: string | null;
+  address: string | null;
+  emergency_contact_name: string | null;
+  emergency_contact_relationship: string | null;
+  emergency_contact_phone: string | null;
+  restricted_notes: string | null;
+};
+
+const PRIVATE_FIELDS = [
+  'cpf', 'address', 'emergency_contact_name', 'emergency_contact_relationship', 'emergency_contact_phone', 'restricted_notes',
+] as const;
+
+// Dados pessoais (tabela employee_private): o RLS só devolve linhas para
+// Admin, ADM e RH; para os outros perfis o mapa fica vazio.
+async function loadPrivateData(): Promise<Map<string, PrivateData>> {
+  const { data, error } = await supabase.from('employee_private').select('*');
+  if (error) return new Map();
+  return new Map(((data || []) as PrivateData[]).map((p) => [p.employee_id, p]));
+}
+
+function splitPrivate(payload: Record<string, any>) {
+  const publicPart: Record<string, any> = { ...payload };
+  const privatePart: Record<string, any> = {};
+  for (const f of PRIVATE_FIELDS) {
+    privatePart[f] = publicPart[f] ?? null;
+    delete publicPart[f];
+  }
+  return { publicPart, privatePart };
+}
+
 export const EmployeeService = {
   mapRow(row: any): Employee {
     return {
@@ -135,13 +173,16 @@ export const EmployeeService = {
   // Obter todos os funcionários
   async getEmployees(): Promise<Employee[]> {
     if (isSupabaseConfigured) {
-      const { data, error } = await supabase
-        .from('employees')
-        .select('*')
-        .order('full_name', { ascending: true });
+      const [{ data, error }, privateData] = await Promise.all([
+        supabase.from('employees').select(PUBLIC_COLUMNS).order('full_name', { ascending: true }),
+        loadPrivateData(),
+      ]);
 
       if (error) throw error;
-      return (data || []).map(this.mapRow);
+      return (data || []).map((row: any) => {
+        const { employee_id: _ignored, ...priv } = (privateData.get(row.id) || {}) as any;
+        return this.mapRow({ ...row, ...priv });
+      });
     }
 
     try {
@@ -178,14 +219,23 @@ export const EmployeeService = {
 
   async saveEmployee(employee: Omit<Employee, 'id' | 'created_at' | 'updated_at'> & { id?: string }): Promise<Employee> {
     if (isSupabaseConfigured) {
-      const payload = this.toRow(employee);
+      const { publicPart, privatePart } = splitPrivate(this.toRow(employee));
       const query = employee.id
-        ? supabase.from('employees').update(payload).eq('id', employee.id)
-        : supabase.from('employees').insert(payload);
-      const { data, error } = await query.select('*').single();
-
+        ? supabase.from('employees').update(publicPart).eq('id', employee.id)
+        : supabase.from('employees').insert(publicPart);
+      const { data, error } = await query.select(PUBLIC_COLUMNS).single();
       if (error) throw error;
-      return this.mapRow(data);
+
+      // Dados pessoais na tabela própria (só Admin, ADM e RH conseguem gravar)
+      const saved = data as any;
+      const { error: privErr } = await supabase
+        .from('employee_private')
+        .upsert({ employee_id: saved.id, ...privatePart }, { onConflict: 'employee_id' });
+      if (privErr) {
+        if (privErr.code === '23505') throw new Error('Já existe outro funcionário com esse CPF.');
+        throw new Error(`Funcionário salvo, mas os dados pessoais não: ${privErr.message}`);
+      }
+      return this.mapRow({ ...saved, ...privatePart });
     }
 
     const list = await this.getEmployees();
@@ -227,7 +277,7 @@ export const EmployeeService = {
           termination_date: newStatus === 'desligado' ? new Date().toISOString().slice(0, 10) : null,
         })
         .eq('id', id)
-        .select('*')
+        .select(PUBLIC_COLUMNS)
         .maybeSingle();
 
       if (error) throw error;
