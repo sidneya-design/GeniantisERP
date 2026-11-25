@@ -92,11 +92,11 @@ interface FormState {
   description: string;
 }
 
-const newForm = (calendarId: string, date: string, time?: string, kind: 'evento' | 'atividade' = 'evento', me = ''): FormState => {
+const newForm = (calendarId: string, date: string, time?: string, kind: 'evento' | 'atividade' = 'evento', me = '', endTime?: string): FormState => {
   const start = time || '09:00';
   return {
     kind, calendar_id: calendarId, title: '', allDay: !time, start_date: date, end_date: date, start_time: start,
-    end_time: minToTime(Math.min(timeToMin(start) + 60, 23 * 60 + 59)), recurrence: 'nenhuma', recurrence_until: '', color: null,
+    end_time: endTime || minToTime(Math.min(timeToMin(start) + 60, 23 * 60 + 59)), recurrence: 'nenhuma', recurrence_until: '', color: null,
     location: '', responsible_employee_id: '', guests: '', guestIds: [], meeting_url: '', hadMeeting: false, reminder: time ? '30' : '', hadReminder: false, muted: false, hadMuted: false, originalGuests: [], status: 'nao_iniciado',
     assignee_id: kind === 'atividade' ? me : '', description: '',
   };
@@ -442,7 +442,7 @@ export const Agenda: React.FC = () => {
   // Clique num horário ou dia sempre responde: abre o formulário ou explica por que não dá para criar
   const [notice, setNotice] = useState<string | null>(null);
   const openCreate = calendars
-    ? (d: string, time?: string, kind: 'evento' | 'atividade' = 'evento') => {
+    ? (d: string, time?: string, kind: 'evento' | 'atividade' = 'evento', endTime?: string) => {
         if (!defaultCal) {
           setNotice(
             calendars.length === 0
@@ -453,7 +453,7 @@ export const Agenda: React.FC = () => {
         }
         setNotice(null);
         setFormError(null);
-        setForm(newForm(defaultCal.id, d, time, kind, meId));
+        setForm(newForm(defaultCal.id, d, time, kind, meId, endTime));
       }
     : undefined;
 
@@ -478,6 +478,85 @@ export const Agenda: React.FC = () => {
   const canChangeStatus = (ev: AgendaEvent) => (ev.kind === 'atividade' && ev.assignee_id === meId) || canEditEvent(ev);
 
   const refresh = () => setReload((n) => n + 1);
+
+  /** Na grade de horários: só evento/atividade com horário, de um dia só, em agenda que a pessoa pode editar */
+  const canDrag = (i: AgendaItem) => !!i.event && !!i.startTime && i.date === i.endDate && canEditEvent(i.event);
+  /** Mudar de dia (visão Mês e faixa "dia todo"): qualquer evento ou atividade que a pessoa pode editar */
+  const canShift = (i: AgendaItem) => !!i.event && canEditEvent(i.event);
+
+  /** Último arraste gravado, para o "Desfazer" */
+  const [undo, setUndo] = useState<{ id: string; input: AgendaEventInput; guests: string[]; text: string } | null>(null);
+  useEffect(() => {
+    if (!undo) return;
+    const t = setTimeout(() => setUndo(null), 10000);
+    return () => clearTimeout(t);
+  }, [undo]);
+
+  const doUndo = async () => {
+    const u = undo;
+    if (!u) return;
+    setUndo(null);
+    try {
+      await AgendaService.update(u.id, u.input, u.guests, u.guests);
+    } catch (err: any) {
+      setWarnings((w) => [...w, err?.message || 'Não foi possível desfazer.']);
+    } finally {
+      refresh();
+    }
+  };
+
+  // Cmd+Z / Ctrl+Z desfaz o último arraste (fora de campos de texto)
+  useEffect(() => {
+    if (!undo) return;
+    const onKey = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement | null;
+      if (!(e.metaKey || e.ctrlKey) || e.key.toLowerCase() !== 'z' || e.shiftKey) return;
+      if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
+      e.preventDefault();
+      doUndo();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [undo]);
+
+  /**
+   * Soltou o item arrastado: grava o novo dia (shift = dias de diferença) e, na grade de horários, o novo horário.
+   * O resto do evento fica como está.
+   */
+  const relocate = async (it: AgendaItem, shift: number, start?: string, end?: string) => {
+    const ev = it.event;
+    if (!ev) return;
+    if (ev.recurrence !== 'nenhuma') {
+      const ok = await confirm({
+        title: 'Mudar todas as repetições?',
+        message: `"${ev.title}" se repete. ${start ? 'O novo horário' : 'A mudança de dia'} vale para todas as repetições.`,
+        confirmLabel: 'Mudar todas',
+      });
+      if (!ok) return;
+    }
+    const f = formFromEvent(ev);
+    const before = toInput(f);
+    const after = toInput({
+      ...f, start_date: addDays(f.start_date, shift), end_date: addDays(f.end_date, shift),
+      ...(start && end ? { start_time: start, end_time: end } : {}),
+    });
+    // Mostra na hora no lugar novo; a recarga confirma o que foi gravado
+    setItems((l) => l.map((i) => (i.key === it.key
+      ? { ...i, date: addDays(i.date, shift), endDate: addDays(i.endDate, shift), ...(start && end ? { startTime: start, endTime: end } : {}) }
+      : i)));
+    setUndo(null);
+    try {
+      await AgendaService.update(ev.id, after, f.originalGuests, f.guestIds);
+      setUndo({ id: ev.id, input: before, guests: f.guestIds, text: ev.kind === 'atividade' ? 'Atividade atualizada' : 'Evento atualizado' });
+    } catch (err: any) {
+      setWarnings((w) => [...w, err?.message || 'Não foi possível mudar o evento de lugar.']);
+    } finally {
+      refresh();
+    }
+  };
+  const moveItem = (it: AgendaItem, day: string, start: string, end: string) => relocate(it, diffDays(it.date, day), start, end);
+  const shiftItem = (it: AgendaItem, from: string, to: string) => relocate(it, diffDays(from, to));
 
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -757,6 +836,14 @@ export const Agenda: React.FC = () => {
     <TaskToggleContext.Provider value={toggleTask}>
     <div className="flex gap-6">
       {dialog}
+      {undo && (
+        // Aviso depois de arrastar, com Desfazer (como no Google Agenda)
+        <div role="status" className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-4 rounded-lg bg-slate-800 text-white text-sm pl-4 pr-2 py-2.5 shadow-xl">
+          <span>{undo.text}</span>
+          <button type="button" onClick={doUndo} className="px-2 py-1 rounded font-semibold text-blue-300 hover:bg-white/10" title="Desfazer (Cmd+Z)">Desfazer</button>
+          <button type="button" onClick={() => setUndo(null)} className="p-1 rounded hover:bg-white/10" aria-label="Fechar aviso"><X className="w-4 h-4" /></button>
+        </div>
+      )}
       {!panelHidden && <aside className="hidden lg:block w-60 shrink-0 pt-1">{panel}</aside>}
 
       {panelOpen && (
@@ -854,9 +941,9 @@ export const Agenda: React.FC = () => {
           </div>
         )}
 
-        {view === 'mes' && <MonthView cursor={cursor} itemsOn={itemsOn} onOpen={setDetail} onDay={goDay} onCreate={openCreate && ((d) => openCreate(d))} mobile={mobile} weekends={weekends} />}
-        {view === 'semana' && <TimeGrid days={weekDays} itemsOn={itemsOn} onOpen={setDetail} onDay={goDay} onCreate={openCreate && ((d, t) => openCreate(d, t))} />}
-        {view === 'dia' && <TimeGrid days={[cursor]} itemsOn={itemsOn} onOpen={setDetail} onDay={goDay} onCreate={openCreate && ((d, t) => openCreate(d, t))} />}
+        {view === 'mes' && <MonthView cursor={cursor} itemsOn={itemsOn} onOpen={setDetail} onDay={goDay} onCreate={openCreate && ((d) => openCreate(d))} mobile={mobile} weekends={weekends} canDrag={canShift} onShift={shiftItem} />}
+        {view === 'semana' && <TimeGrid days={weekDays} itemsOn={itemsOn} onOpen={setDetail} onDay={goDay} onCreate={openCreate && ((d, t, e) => openCreate(d, t, 'evento', e))} canDrag={canDrag} onMove={moveItem} canShift={canShift} onShift={shiftItem} />}
+        {view === 'dia' && <TimeGrid days={[cursor]} itemsOn={itemsOn} onOpen={setDetail} onDay={goDay} onCreate={openCreate && ((d, t, e) => openCreate(d, t, 'evento', e))} canDrag={canDrag} onMove={moveItem} canShift={canShift} onShift={shiftItem} />}
         {view === 'lista' && <ListView from={cursor} itemsOn={itemsOn} onOpen={setDetail} onDay={goDay} weekends={weekends} />}
         {view === 'atividades' && (
           <ActivitiesBoard

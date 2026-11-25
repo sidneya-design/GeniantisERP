@@ -146,17 +146,68 @@ export const MiniCalendar: React.FC<{ selected: string; onPick: (d: string) => v
 
 // ---------------- Chip de evento ----------------
 
-export const Chip: React.FC<{ item: AgendaItem; onOpen: (i: AgendaItem) => void; compact?: boolean }> = ({ item, onOpen, compact }) => {
+/** Arrastar um item para outro dia (visão Mês e faixa "dia todo"): as células de destino têm data-day */
+export interface DayDrag {
+  /** Item sendo arrastado e o dia sob o ponteiro */
+  st: { item: AgendaItem; over: string } | null;
+  begin: (e: React.PointerEvent, item: AgendaItem, day: string) => void;
+  /** Ligado logo depois de soltar: o clique que vem junto não deve abrir nem criar nada */
+  suppress: React.MutableRefObject<boolean>;
+}
+
+export function useDayDrag(canDrag?: (i: AgendaItem) => boolean, onShift?: (i: AgendaItem, from: string, to: string) => void): DayDrag {
+  const [st, setSt] = useState<DayDrag['st']>(null);
+  const suppress = useRef(false);
+  const begin = (e: React.PointerEvent, item: AgendaItem, day: string) => {
+    if (!onShift || !canDrag?.(item) || e.button !== 0 || e.pointerType === 'touch') return;
+    e.preventDefault();
+    const x0 = e.clientX;
+    const y0 = e.clientY;
+    let active = false;
+    let over = day;
+    const dayAt = (x: number, y: number) => (document.elementFromPoint(x, y)?.closest('[data-day]') as HTMLElement | null)?.dataset.day;
+    const move = (ev: PointerEvent) => {
+      if (!active && Math.hypot(ev.clientX - x0, ev.clientY - y0) < 5) return;
+      active = true;
+      over = dayAt(ev.clientX, ev.clientY) || over;
+      setSt({ item, over });
+    };
+    const stop = (commit: boolean) => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      window.removeEventListener('pointercancel', cancel);
+      window.removeEventListener('keydown', esc);
+      setSt(null);
+      if (!active) return;
+      suppress.current = true;
+      setTimeout(() => { suppress.current = false; }, 0);
+      if (commit && over !== day) onShift(item, day, over);
+    };
+    const up = () => stop(true);
+    const cancel = () => stop(false);
+    const esc = (ev: KeyboardEvent) => { if (ev.key === 'Escape') stop(false); };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+    window.addEventListener('pointercancel', cancel);
+    window.addEventListener('keydown', esc);
+  };
+  return { st, begin, suppress };
+}
+
+export const Chip: React.FC<{ item: AgendaItem; onOpen: (i: AgendaItem) => void; compact?: boolean; drag?: DayDrag; day?: string; ghost?: boolean }> = ({ item, onOpen, compact, drag, day, ghost }) => {
+  const open = (e: React.MouseEvent) => { e.stopPropagation(); if (!drag?.suppress.current) onOpen(item); };
+  const down = drag && day ? (e: React.PointerEvent) => { e.stopPropagation(); drag.begin(e, item, day); } : undefined;
+  const fx = `${ghost ? 'pointer-events-none ring-2 ring-blue-400 shadow-md' : ''} ${drag?.st?.item.key === item.key && !ghost ? 'opacity-40' : ''}`;
   if (!item.startTime) {
     return (
-      <button type="button" onClick={(e) => { e.stopPropagation(); onOpen(item); }} style={fillStyle(item.color)} className={`w-full text-left truncate rounded px-1.5 py-0.5 text-[11px] sm:text-xs font-medium hover:brightness-95 flex items-center gap-1 ${done(item) ? 'opacity-60 line-through' : ''}`} title={item.title}>
+      <button type="button" onClick={open} onPointerDown={down} style={fillStyle(item.color)} className={`w-full text-left truncate rounded px-1.5 py-0.5 text-[11px] sm:text-xs font-medium hover:brightness-95 flex items-center gap-1 ${done(item) ? 'opacity-60 line-through' : ''} ${fx}`} title={item.title}>
         <TaskMark item={item} />
         <span className="truncate">{item.title}</span>
       </button>
     );
   }
   return (
-    <button type="button" onClick={(e) => { e.stopPropagation(); onOpen(item); }} className="w-full text-left truncate rounded px-1 py-0.5 text-[11px] sm:text-xs text-slate-700 hover:bg-slate-100 flex items-center gap-1" title={`${fmtTime(item.startTime)} ${item.title}`}>
+    <button type="button" onClick={open} onPointerDown={down} className={`w-full text-left truncate rounded px-1 py-0.5 text-[11px] sm:text-xs text-slate-700 hover:bg-slate-100 flex items-center gap-1 ${ghost ? 'bg-white' : ''} ${fx}`} title={`${fmtTime(item.startTime)} ${item.title}`}>
       <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: colorHex(item.color) }} />
       {!compact && <span className="text-slate-500 tabular-nums shrink-0">{fmtTime(item.startTime)}</span>}
       <TaskMark item={item} />
@@ -172,7 +223,11 @@ export const MonthView: React.FC<{
   onDay: (d: string) => void; onCreate?: (d: string) => void; mobile: boolean;
   /** false = só de segunda a sexta */
   weekends?: boolean;
-}> = ({ cursor, itemsOn, onOpen, onDay, onCreate, mobile, weekends = true }) => {
+  canDrag?: (i: AgendaItem) => boolean;
+  /** Soltou o item em outro dia */
+  onShift?: (i: AgendaItem, from: string, to: string) => void;
+}> = ({ cursor, itemsOn, onOpen, onDay, onCreate, mobile, weekends = true, canDrag, onShift }) => {
+  const drag = useDayDrag(canDrag, onShift);
   const gridStart = startOfWeek(startOfMonth(cursor));
   const today = todayKey();
   const max = mobile ? 2 : 3;
@@ -200,8 +255,9 @@ export const MonthView: React.FC<{
           return (
             <div
               key={d}
-              onClick={() => onCreate?.(d)}
-              className={`min-h-[4.75rem] sm:min-h-[6.5rem] border-b border-r border-slate-100 p-0.5 sm:p-1 flex flex-col gap-0.5 ${i === lastCol ? 'border-r-0' : ''} ${out ? 'bg-slate-50/60' : ''} ${onCreate ? 'cursor-pointer' : ''}`}
+              data-day={d}
+              onClick={() => { if (!drag.suppress.current) onCreate?.(d); }}
+              className={`min-h-[4.75rem] sm:min-h-[6.5rem] border-b border-r border-slate-100 p-0.5 sm:p-1 flex flex-col gap-0.5 ${i === lastCol ? 'border-r-0' : ''} ${drag.st?.over === d ? 'bg-blue-50' : out ? 'bg-slate-50/60' : ''} ${onCreate ? 'cursor-pointer' : ''} ${drag.st ? 'select-none' : ''}`}
             >
               <button
                 type="button"
@@ -210,7 +266,8 @@ export const MonthView: React.FC<{
               >
                 {Number(d.slice(8)) === 1 && !mobile ? fmtDate(d, { day: 'numeric', month: 'short' }).replace('.', '') : Number(d.slice(8))}
               </button>
-              {list.slice(0, max).map((it) => <Chip key={it.key} item={it} onOpen={onOpen} compact={mobile} />)}
+              {list.slice(0, max).map((it) => <Chip key={it.key} item={it} onOpen={onOpen} compact={mobile} drag={drag} day={d} />)}
+              {drag.st?.over === d && !list.some((it) => it.key === drag.st!.item.key) && <Chip item={drag.st.item} onOpen={onOpen} compact={mobile} ghost />}
               {extra > 0 && (
                 <button type="button" onClick={(e) => { e.stopPropagation(); onDay(d); }} className="text-left px-1 text-[11px] font-semibold text-slate-500 hover:text-slate-800">
                   +{extra} {mobile ? '' : 'mais'}
@@ -260,11 +317,47 @@ function layoutDay(day: string, items: AgendaItem[]): Placed[] {
   return out;
 }
 
+/** Arrastar na grade: mover o evento, esticar o fim ou selecionar um intervalo para criar */
+interface Drag {
+  mode: 'move' | 'resize' | 'create';
+  item?: AgendaItem;
+  /** Dia e minuto onde o arraste começou */
+  day: string;
+  anchor: number;
+  /** Distância entre o ponteiro e o início do evento (mover) */
+  grab: number;
+  dur: number;
+  x0: number;
+  y0: number;
+  active: boolean;
+  /** Prévia: dia, início e fim em minutos */
+  toDay: string;
+  s: number;
+  e: number;
+}
+
+const SNAP = 15;
+const DAY_MIN = 24 * 60;
+const clamp = (v: number, a: number, b: number) => Math.min(Math.max(v, a), b);
+const endLabel = (m: number) => fmtTime(minToTime(Math.min(m, DAY_MIN - 1)));
+
 export const TimeGrid: React.FC<{
   days: string[]; itemsOn: (d: string) => AgendaItem[]; onOpen: (i: AgendaItem) => void;
-  onDay: (d: string) => void; onCreate?: (d: string, time?: string) => void;
-}> = ({ days, itemsOn, onOpen, onDay, onCreate }) => {
+  onDay: (d: string) => void; onCreate?: (d: string, time?: string, endTime?: string) => void;
+  /** Quais itens podem ser arrastados e o que fazer ao soltar */
+  canDrag?: (i: AgendaItem) => boolean;
+  onMove?: (i: AgendaItem, day: string, start: string, end: string) => void;
+  /** Item de dia inteiro solto em outro dia */
+  onShift?: (i: AgendaItem, from: string, to: string) => void;
+  /** Quais itens de dia inteiro podem mudar de dia */
+  canShift?: (i: AgendaItem) => boolean;
+}> = ({ days, itemsOn, onOpen, onDay, onCreate, canDrag, onMove, onShift, canShift }) => {
+  const dayDrag = useDayDrag(canShift, onShift);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const colRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const [drag, setDrag] = useState<Drag | null>(null);
+  // Depois de arrastar, o clique que o navegador dispara ao soltar não deve abrir nada
+  const suppressClick = useRef(false);
   const today = todayKey();
   const [now, setNow] = useState(nowMinutes());
   useEffect(() => {
@@ -282,14 +375,81 @@ export const TimeGrid: React.FC<{
   const wide = days.length > 1;
 
   const clickSlot = (d: string, e: React.MouseEvent<HTMLDivElement>) => {
-    if (!onCreate) return;
+    if (suppressClick.current || !onCreate) return;
     const rect = e.currentTarget.getBoundingClientRect();
     const min = Math.floor(((e.clientY - rect.top) / HOUR_PX) * 2) * 30;
     onCreate(d, minToTime(Math.min(Math.max(min, 0), 23 * 60)));
   };
 
+  /** Dia (coluna) e minuto sob o ponteiro */
+  const pointAt = (x: number, y: number) => {
+    let idx = 0;
+    colRefs.current.forEach((c, i) => { if (c && i < days.length && x >= c.getBoundingClientRect().left) idx = i; });
+    const rect = colRefs.current[idx]!.getBoundingClientRect();
+    return { day: days[idx], min: ((y - rect.top) / HOUR_PX) * 60 };
+  };
+
+  const preview = (d: Drag, x: number, y: number): Drag => {
+    const p = pointAt(x, y);
+    if (d.mode === 'move') {
+      const s = clamp(Math.round((p.min - d.grab) / SNAP) * SNAP, 0, DAY_MIN - d.dur);
+      return { ...d, toDay: p.day, s, e: s + d.dur };
+    }
+    if (d.mode === 'resize') return { ...d, e: clamp(Math.round(p.min / SNAP) * SNAP, d.s + SNAP, DAY_MIN) };
+    const a = Math.floor(d.anchor / SNAP) * SNAP;
+    const m = clamp(p.min, 0, DAY_MIN);
+    return { ...d, s: Math.min(a, Math.floor(m / SNAP) * SNAP), e: Math.max(a + SNAP, Math.ceil(m / SNAP) * SNAP) };
+  };
+
+  const begin = (e: React.PointerEvent, mode: Drag['mode'], day: string, p?: Placed) => {
+    // Só com mouse: no celular o toque continua rolando a tela e abrindo com um toque
+    if (e.button !== 0 || e.pointerType === 'touch') return;
+    if (mode === 'create' ? !onCreate : !onMove) return;
+    e.preventDefault();
+    const at = pointAt(e.clientX, e.clientY);
+    const it = p?.item;
+    const s = p ? p.startMin : at.min;
+    // Duração real (a grade estica eventos muito curtos para caberem na tela)
+    const dur = it?.startTime && it.endTime ? Math.max(timeToMin(it.endTime) - timeToMin(it.startTime), SNAP) : p ? p.endMin - p.startMin : SNAP;
+    let cur: Drag = { mode, item: it, day, anchor: at.min, grab: at.min - s, dur, x0: e.clientX, y0: e.clientY, active: false, toDay: day, s, e: s + dur };
+
+    const move = (ev: PointerEvent) => {
+      if (!cur.active && Math.hypot(ev.clientX - cur.x0, ev.clientY - cur.y0) < 5) return;
+      cur = preview({ ...cur, active: true }, ev.clientX, ev.clientY);
+      // Rola a grade quando o ponteiro chega perto da borda
+      const sc = scrollRef.current;
+      if (sc) {
+        const r = sc.getBoundingClientRect();
+        if (ev.clientY < r.top + 30) sc.scrollTop -= 12;
+        else if (ev.clientY > r.bottom - 30) sc.scrollTop += 12;
+      }
+      setDrag(cur);
+    };
+    const up = () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      window.removeEventListener('pointercancel', cancel);
+      window.removeEventListener('keydown', esc);
+      setDrag(null);
+      if (!cur.active) return;
+      suppressClick.current = true;
+      setTimeout(() => { suppressClick.current = false; }, 0);
+      const start = minToTime(cur.s);
+      const end = minToTime(Math.min(cur.e, DAY_MIN - 1));
+      if (cur.mode === 'create') onCreate?.(cur.day, start, end);
+      else if (cur.item && (cur.toDay !== cur.day || cur.s !== p!.startMin || cur.e !== p!.startMin + dur)) onMove?.(cur.item, cur.toDay, start, end);
+    };
+    // Esc (ou o navegador interromper) cancela o arraste
+    const cancel = () => { cur = { ...cur, active: false }; up(); };
+    const esc = (ev: KeyboardEvent) => { if (ev.key === 'Escape') cancel(); };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+    window.addEventListener('pointercancel', cancel);
+    window.addEventListener('keydown', esc);
+  };
+
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+    <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden select-none" onDragStart={(e) => e.preventDefault()}>
       <div className={wide ? 'overflow-x-auto' : ''}>
         <div className={wide ? 'min-w-[44rem]' : ''}>
           {/* Cabeçalho dos dias */}
@@ -309,8 +469,9 @@ export const TimeGrid: React.FC<{
             <div className="flex border-b border-slate-200">
               <div className="w-12 sm:w-14 shrink-0 text-[10px] text-slate-400 text-right pr-2 pt-1">dia todo</div>
               {days.map((d, i) => (
-                <div key={d} className="flex-1 min-w-0 p-0.5 space-y-0.5 border-l border-slate-100">
-                  {allDay[i].slice(0, 4).map((it) => <Chip key={it.key} item={it} onOpen={onOpen} />)}
+                <div key={d} data-day={d} className={`flex-1 min-w-0 p-0.5 space-y-0.5 border-l border-slate-100 ${dayDrag.st?.over === d ? 'bg-blue-50' : ''}`}>
+                  {allDay[i].slice(0, 4).map((it) => <Chip key={it.key} item={it} onOpen={onOpen} drag={dayDrag} day={d} />)}
+                  {dayDrag.st?.over === d && !allDay[i].some((it) => it.key === dayDrag.st!.item.key) && <Chip item={dayDrag.st.item} onOpen={onOpen} ghost />}
                   {allDay[i].length > 4 && <button type="button" onClick={() => onDay(d)} className="px-1 text-[11px] font-semibold text-slate-500">+{allDay[i].length - 4} mais</button>}
                 </div>
               ))}
@@ -326,27 +487,68 @@ export const TimeGrid: React.FC<{
                   </span>
                 ))}
               </div>
-              {days.map((d) => (
-                <div key={d} onClick={(e) => clickSlot(d, e)} className={`flex-1 relative border-l border-slate-100 min-w-0 ${onCreate ? 'cursor-pointer' : ''}`}>
+              {days.map((d, di) => (
+                <div
+                  key={d}
+                  ref={(el) => { colRefs.current[di] = el; }}
+                  onClick={(e) => clickSlot(d, e)}
+                  onPointerDown={(e) => begin(e, 'create', d)}
+                  className={`flex-1 relative border-l border-slate-100 min-w-0 ${onCreate ? 'cursor-pointer' : ''}`}
+                >
                   {Array.from({ length: 24 }, (_, h) => (
                     <div key={h} className="absolute inset-x-0 border-t border-slate-100" style={{ top: h * HOUR_PX }} />
                   ))}
                   {layoutDay(d, itemsOn(d)).map((p) => {
-                    const short = p.height < 36;
+                    const short = p.height < 40;
+                    const draggable = !!onMove && !!canDrag?.(p.item);
+                    const dragging = drag?.active && drag.item?.key === p.item.key;
                     return (
                       <button
                         key={p.item.key}
                         type="button"
-                        onClick={(e) => { e.stopPropagation(); onOpen(p.item); }}
-                        className="absolute rounded-md px-1.5 text-left overflow-hidden text-[11px] sm:text-xs leading-tight border border-white shadow-xs hover:brightness-95"
+                        onClick={(e) => { e.stopPropagation(); if (!suppressClick.current) onOpen(p.item); }}
+                        onPointerDown={(e) => { e.stopPropagation(); if (draggable) begin(e, 'move', d, p); }}
+                        className={`absolute rounded-md px-1.5 text-left overflow-hidden text-[11px] sm:text-xs leading-tight border border-white shadow-xs hover:brightness-95 ${short ? 'whitespace-nowrap text-ellipsis' : ''} ${draggable ? 'cursor-grab' : ''} ${dragging ? 'opacity-40' : ''}`}
                         style={{ ...fillStyle(p.item.color), top: p.top + 1, height: p.height - 2, left: `calc(${(p.col / p.cols) * 100}% + 2px)`, width: `calc(${100 / p.cols}% - 4px)` }}
-                        title={p.item.title}
+                        title={`${p.item.title} · ${fmtTime(minToTime(p.startMin))} – ${endLabel(p.endMin)}`}
                       >
-                        <span className={`font-semibold ${short ? 'truncate inline' : 'block truncate pt-0.5'} ${done(p.item) ? 'line-through opacity-70' : ''}`}><TaskMark item={p.item} className="mr-1" />{p.item.title}</span>
-                        <span className={`opacity-90 tabular-nums ${short ? 'ml-1' : 'block'}`}>{fmtTime(minToTime(p.startMin))} – {fmtTime(minToTime(Math.min(p.endMin, 24 * 60 - 1)))}</span>
+                        {short ? (
+                          // Evento curto: título e horário na mesma linha, com reticências no fim (como no Google)
+                          <span className={done(p.item) ? 'line-through opacity-70' : ''}>
+                            <span className="font-semibold"><TaskMark item={p.item} className="mr-1" />{p.item.title}</span>
+                            <span className="opacity-90 tabular-nums">, {fmtTime(minToTime(p.startMin))}</span>
+                          </span>
+                        ) : (
+                          <>
+                            <span className={`font-semibold block pt-0.5 break-words ${done(p.item) ? 'line-through opacity-70' : ''}`}><TaskMark item={p.item} className="mr-1" />{p.item.title}</span>
+                            <span className="opacity-90 tabular-nums block truncate">{fmtTime(minToTime(p.startMin))} – {endLabel(p.endMin)}</span>
+                          </>
+                        )}
+                        {draggable && (
+                          // Alça para esticar ou encurtar o fim
+                          <span
+                            onPointerDown={(e) => { e.stopPropagation(); begin(e, 'resize', d, p); }}
+                            className="absolute inset-x-0 bottom-0 h-1.5 cursor-ns-resize"
+                          />
+                        )}
                       </button>
                     );
                   })}
+                  {drag?.active && drag.toDay === d && (
+                    <div
+                      className="absolute left-0.5 right-1 z-20 rounded-md px-1.5 text-[11px] sm:text-xs leading-tight shadow-lg pointer-events-none overflow-hidden ring-2 ring-white"
+                      style={{ ...fillStyle(drag.item?.color || 'azul'), top: (drag.s / 60) * HOUR_PX + 1, height: Math.max(((drag.e - drag.s) / 60) * HOUR_PX - 2, 14) }}
+                    >
+                      {drag.e - drag.s < 50 ? (
+                        <span className="block truncate"><span className="font-semibold">{drag.item?.title || '(sem título)'}</span>, {fmtTime(minToTime(drag.s))} – {endLabel(drag.e)}</span>
+                      ) : (
+                        <>
+                          <span className="font-semibold block truncate pt-0.5">{drag.item?.title || '(sem título)'}</span>
+                          <span className="tabular-nums block truncate">{fmtTime(minToTime(drag.s))} – {endLabel(drag.e)}</span>
+                        </>
+                      )}
+                    </div>
+                  )}
                   {d === today && (
                     <div className="absolute inset-x-0 z-10 pointer-events-none" style={{ top: (now / 60) * HOUR_PX }}>
                       <div className="h-0.5 bg-rose-500 relative"><span className="absolute -left-1.5 -top-[5px] w-3 h-3 rounded-full bg-rose-500" /></div>
