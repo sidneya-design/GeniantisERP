@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   AlertTriangle, AlignLeft, CalendarDays, CheckSquare, Clock, ExternalLink, Loader2, MapPin, PanelLeft, Pencil, Plus, Repeat,
-  BellRing, ChevronDown, Info, Settings2, Trash2, User, Users, Video, X,
+  BellRing, ChevronDown, Info, Menu, Settings2, Trash2, User, Users, Video, X,
 } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useConfirm } from '../components/common/ConfirmDialog';
@@ -21,14 +21,14 @@ import {
 const VIEW_LABEL: Record<View, string> = { dia: 'Dia', semana: 'Semana', mes: 'Mês', lista: 'Programação', atividades: 'Atividades' };
 const STORAGE_KEY = 'geniantis_agenda_prefs';
 
-function readPrefs(): { view?: View; hidden?: string[]; weekends?: boolean; collapsed?: string[] } {
+function readPrefs(): { view?: View; hidden?: string[]; weekends?: boolean; collapsed?: string[]; panelHidden?: boolean } {
   try {
     return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
   } catch {
     return {};
   }
 }
-function writePrefs(p: { view: View; hidden: string[]; weekends: boolean; collapsed: string[] }) {
+function writePrefs(p: { view: View; hidden: string[]; weekends: boolean; collapsed: string[]; panelHidden: boolean }) {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(p));
   } catch {
@@ -308,6 +308,8 @@ export const Agenda: React.FC = () => {
   const [reload, setReload] = useState(0);
   const [calReload, setCalReload] = useState(0);
   const [panelOpen, setPanelOpen] = useState(false);
+  // Desktop: painel lateral recolhido pelo botão ☰ (igual ao Google Agenda)
+  const [panelHidden, setPanelHidden] = useState<boolean>(prefs.panelHidden ?? false);
   const [detail, setDetail] = useState<AgendaItem | null>(null);
   const [form, setForm] = useState<FormState | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
@@ -372,7 +374,7 @@ export const Agenda: React.FC = () => {
   const defaultCal = personal && personal.level >= 2 ? personal : writable[0];
   const canCreate = !!defaultCal;
 
-  useEffect(() => writePrefs({ view, hidden: [...hidden], weekends, collapsed: [...collapsed] }), [view, hidden, weekends, collapsed]);
+  useEffect(() => writePrefs({ view, hidden: [...hidden], weekends, collapsed: [...collapsed], panelHidden }), [view, hidden, weekends, collapsed, panelHidden]);
 
   useEffect(() => {
     AgendaService.calendars()
@@ -755,7 +757,7 @@ export const Agenda: React.FC = () => {
     <TaskToggleContext.Provider value={toggleTask}>
     <div className="flex gap-6">
       {dialog}
-      <aside className="hidden lg:block w-60 shrink-0 pt-1">{panel}</aside>
+      {!panelHidden && <aside className="hidden lg:block w-60 shrink-0 pt-1">{panel}</aside>}
 
       {panelOpen && (
         <div className="fixed inset-0 z-40 lg:hidden" onClick={() => setPanelOpen(false)}>
@@ -773,6 +775,16 @@ export const Agenda: React.FC = () => {
       <div className="flex-1 min-w-0 space-y-3">
         <div className="flex flex-wrap items-center gap-2">
           <button type="button" onClick={() => setPanelOpen(true)} className="lg:hidden p-2 rounded-full hover:bg-slate-200/60 text-slate-600" aria-label="Agendas e minicalendário"><PanelLeft className="w-5 h-5" /></button>
+          <button
+            type="button"
+            onClick={() => setPanelHidden((v) => !v)}
+            className="hidden lg:inline-flex p-2 rounded-full hover:bg-slate-200/60 text-slate-600"
+            title={panelHidden ? 'Mostrar painel lateral' : 'Ocultar painel lateral'}
+            aria-label={panelHidden ? 'Mostrar painel lateral' : 'Ocultar painel lateral'}
+            aria-expanded={!panelHidden}
+          >
+            <Menu className="w-5 h-5" />
+          </button>
           {view !== 'atividades' && (
             <>
               <button type="button" onClick={() => setCursor(todayKey())} className="px-4 py-1.5 rounded-full border border-slate-300 bg-white text-sm font-semibold text-slate-700 hover:bg-slate-50">Hoje</button>
@@ -855,7 +867,7 @@ export const Agenda: React.FC = () => {
       </div>
 
       {canCreate && !form && !detail && !settings && (
-        <button type="button" onClick={() => openCreate?.(view === 'atividades' ? todayKey() : cursor, undefined, view === 'atividades' ? 'atividade' : 'evento')} className="lg:hidden fixed right-4 bottom-5 z-30 w-14 h-14 rounded-2xl bg-white border border-slate-200 shadow-xl flex items-center justify-center" aria-label="Criar">
+        <button type="button" onClick={() => openCreate?.(view === 'atividades' ? todayKey() : cursor, undefined, view === 'atividades' ? 'atividade' : 'evento')} className={`${panelHidden ? '' : 'lg:hidden '}fixed right-4 bottom-5 z-30 w-14 h-14 rounded-2xl bg-white border border-slate-200 shadow-xl flex items-center justify-center hover:bg-blue-50`} aria-label="Criar" title="Criar">
           <Plus className="w-7 h-7 text-blue-600" />
         </button>
       )}
