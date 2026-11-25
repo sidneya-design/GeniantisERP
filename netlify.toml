@@ -1,0 +1,54 @@
+[build]
+  publish = "dist"
+  command = "npm run build"
+  functions = "netlify/functions"
+
+[functions."send-birthdays"]
+  # 07:00 no horário de Brasília (UTC-3) = 10:00 UTC
+  schedule = "0 10 * * *"
+
+[functions."send-alerts"]
+  # 08:00 no horário de Brasília (UTC-3) = 11:00 UTC
+  schedule = "0 11 * * *"
+
+[functions."agenda-reminders"]
+  # Lembretes da agenda: confere a cada 5 minutos
+  schedule = "*/5 * * * *"
+
+# `npm run dev:netlify`: Vite + functions em http://localhost:8888
+[dev]
+  command = "npm run dev"
+  targetPort = 5173
+  port = 8888
+  framework = "#custom"
+
+# Arquivos estáticos do aplicativo de aniversariantes
+[[redirects]]
+  from = "/aniversariantes-app/*"
+  to = "/aniversariantes-app/:splat"
+  status = 200
+
+# Regra de roteamento SPA para rotas internas do GeniantisERP
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+[build.environment]
+  NODE_VERSION = "20"
+
+# Cabeçalhos de segurança em todo o site
+[[headers]]
+  for = "/*"
+  [headers.values]
+    # Só o próprio site pode exibir o ERP em iframe (o painel de aniversariantes usa isso)
+    X-Frame-Options = "SAMEORIGIN"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    # Localização liberada só para o próprio site (ponto registra onde a pessoa bateu)
+    Permissions-Policy = "camera=(), microphone=(), geolocation=(self), payment=(), usb=()"
+    # CSP em modo "só relatar": o navegador NÃO bloqueia nada, só avisa no console (F12)
+    # o que seria bloqueado. Depois de alguns dias sem avisos, trocar o nome para
+    # Content-Security-Policy para ligar a proteção de verdade.
+    Content-Security-Policy-Report-Only = "default-src 'self'; script-src 'self' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https://jjwlkibkltwgdswvemnr.supabase.co; connect-src 'self' https://jjwlkibkltwgdswvemnr.supabase.co wss://jjwlkibkltwgdswvemnr.supabase.co https://fonts.googleapis.com https://fonts.gstatic.com; frame-src 'self' blob:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'"
+
