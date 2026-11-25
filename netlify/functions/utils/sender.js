@@ -39,11 +39,25 @@ function obterTransporteComunicados() {
  * Substitui a variável {{nome}} pelo primeiro nome do contato.
  * @param {string} template - Texto do e‑mail com placeholders.
  * @param {string} fullName - Nome completo do contato.
+ * @param {{ html?: boolean }} [opcoes] - html = o texto vai no corpo do e-mail (HTML): o nome é
+ *   escapado, para um nome com código (ex.: um link) aparecer como texto e não virar HTML.
+ *   No assunto (texto puro) o nome vai como está.
  * @returns {string}
  */
-function aplicarTemplate(template, fullName) {
-  const primeiroNome = fullName.split(' ')[0] || fullName;
-  return template.replace(/{{\s*nome\s*}}/gi, primeiroNome);
+function aplicarTemplate(template, fullName, { html = false } = {}) {
+  const nome = String(fullName || '').trim();
+  const primeiroNome = nome.split(' ')[0] || nome;
+  const valor = html ? escaparHtml(primeiroNome) : primeiroNome;
+  return String(template || '').replace(/{{\s*nome\s*}}/gi, () => valor);
+}
+
+function escaparHtml(texto) {
+  return String(texto)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
 /**
@@ -239,7 +253,7 @@ async function processarEnvioAniversarios(origem = 'automatico') {
   const resultados = [];
   for (const contato of aniversariantes) {
     const assunto = aplicarTemplate(email_assunto, contato.nome);
-    const corpo   = aplicarTemplate(email_template, contato.nome);
+    const corpo   = aplicarTemplate(email_template, contato.nome, { html: true });
 
     const envio = await enviarEmail(contato.email, assunto, corpo, {
       imagemDataUrl: email_imagem,
